@@ -1,0 +1,277 @@
+#summary Summary Pragma.
+#sidebar SidebarPage
+#labels Ignored.
+= Header1 =
+
+<wiki:toc>
+
+==== Tables (mistmatched header sides) ==
+
+Paragraph.
+
+More paragraphs.
+
+Tables:
+
+||* Name/Sample*   || * Markup *       ||
+||  _italic_       || `_italic_`       ||
+||  *bold*         || `*bold*`         ||
+||  `code`         || {{{`code`}}}     ||
+||  {{{code}}}     || `{{{code}}}`     ||
+||  ^super^script  || `^super^script`  ||
+||  ,,sub,,script  || `,,sub,,script`  ||
+|| ~~strikeout~~   || `~~strikeout~~`  ||
+
+You can mix these typefaces in some ways:
+
+||       *Markup*                    ||        *Result*                 ||
+|| `_*bold* in italics_`             || _*bold* in italics_             ||
+|| `*_italics_ in bold*`             || *_italics_ in bold*             ||
+|| `*~~strike~~ works too*`          || *~~strike~~ works too*          ||
+|| `~~as well as _this_ way round~~` || ~~as well as _this_ way round~~ ||
+
+*IN HTML*
+
+<span>
+Tables:
+
+||* Name/Sample*   || * Markup *       ||
+||  _italic_       || `_italic_`       ||
+||  *bold*         || `*bold*`         ||
+||  `code`         || {{{`code`}}}     ||
+||  {{{code}}}     || `{{{code}}}`     ||
+||  ^super^script  || `^super^script`  ||
+||  ,,sub,,script  || `,,sub,,script`  ||
+|| ~~strikeout~~   || `~~strikeout~~`  ||
+
+You can mix these typefaces in some ways:
+
+||       *Markup*                    ||        *Result*                 ||
+|| `_*bold* in italics_`             || _*bold* in italics_             ||
+|| `*_italics_ in bold*`             || *_italics_ in bold*             ||
+|| `*~~strike~~ works too*`          || *~~strike~~ works too*          ||
+|| `~~as well as _this_ way round~~` || ~~as well as _this_ way round~~ ||
+</span>
+
+==== Code (mismatched header sides again) ======
+
+{{{
+{{{
+def fib(n):
+  if n == 0 or n == 1:
+    return n
+  else:
+    # This recursion is not good for large numbers.
+    return fib(n-1) + fib(n-2)
+}}}
+}}}
+
+Which results in:
+
+{{{
+def fib(n):
+  if n == 0 or n == 1:
+    return n
+  else:
+    # This recursion is not good for large numbers.
+    return fib(n-1) + fib(n-2)
+}}}
+
+{{{
+<code language="xml">
+<hello target="world"/>
+</code>
+}}}
+
+<code language="xml">
+<hello target="world"/>
+</code>
+
+*IN HTML*
+
+<span>
+{{{
+{{{
+def fib(n):
+  if n == 0 or n == 1:
+    return n
+  else:
+    # This recursion is not good for large numbers.
+    return fib(n-1) + fib(n-2)
+}}}
+}}}
+
+Which results in:
+
+{{{
+def fib(n):
+  if n == 0 or n == 1:
+    return n
+  else:
+    # This recursion is not good for large numbers.
+    return fib(n-1) + fib(n-2)
+}}}
+
+{{{
+<code language="xml">
+<hello target="world"/>
+</code>
+}}}
+
+<code language="xml">
+<hello target="world"/>
+</code>
+</span>
+
+==== Lists
+
+The following is:
+  * A list
+  * Of bulleted items
+    # This is a numbered sublist
+    # Which is done by indenting further
+  * And back to the main bulleted list
+
+ * This is also a list
+ * With a single leading space
+ * Notice that it is rendered
+  # At the same levels
+  # As the above lists.
+ * Despite the different indentation levels.
+
+ Blockquotes are seen as lists. Time to nest:
+  Nested!
+ Okay back.
+
+*IN HTML*
+
+<span>
+The following is:
+  * A list
+  * Of bulleted items
+    # This is a numbered sublist
+    # Which is done by indenting further
+  * And back to the main bulleted list
+
+ * This is also a list
+ * With a single leading space
+ * Notice that it is rendered
+  # At the same levels
+  # As the above lists.
+ * Despite the different indentation levels.
+
+ Blockquotes are seen as lists. Time to nest:
+  Nested!
+ Okay back.
+</span>
+
+==== Links
+
+A !LittleLink[TestPage ?]
+
+TestPage is linked automatically.
+
+http://www.google.com/
+
+[http://www.google.com Google home page]
+
+[http://www.google.com https://www.google.com/images/srpr/logo11w.png]
+
+https://www.google.com/images/srpr/logo11w.png
+
+[https://www.google.com/images/srpr/logo11w.png An image]
+
+[https://www.google.com/images/srpr/logo11w.png https://www.google.com/images/srpr/logo11w.png]
+
+*IN HTML*
+
+<span>
+A !LittleLink[TestPage ?]
+
+TestPage is linked automatically.
+
+http://www.google.com/
+
+[http://www.google.com Google home page]
+
+[http://www.google.com https://www.google.com/images/srpr/logo11w.png]
+
+https://www.google.com/images/srpr/logo11w.png
+
+[https://www.google.com/images/srpr/logo11w.png An image]
+
+[https://www.google.com/images/srpr/logo11w.png https://www.google.com/images/srpr/logo11w.png]
+</span>
+
+==== Issues
+
+This is issue 123, auto-linked.
+This would be issue 456, but must link to old one.
+
+*IN HTML*
+
+This is issue 123, auto-linked.
+This would be issue 456, but must link to old one.
+
+==== Revisions
+
+Revision 111605.
+
+rev111612.
+
+*IN HTML*
+
+<span>
+Revision 111605.
+
+rev111612.
+</span>
+
+==== Plugins
+
+<wiki:comment>
+This text will be removed from the rendered page.
+</wiki:comment>
+
+<g:plusone size="medium"></g:plusone>
+
+<wiki:video url="http://www.youtube.com/watch?v=FiARsQSlzDc"/>
+
+<span>
+<wiki:comment>
+This text will be removed from the rendered page.
+</wiki:comment>
+
+<g:plusone size="medium"></g:plusone>
+
+<wiki:video url="http://www.youtube.com/watch?v=FiARsQSlzDc"/>
+</span>
+
+==== Variables
+
+%%notdefined%%
+
+%%username%%
+
+%%email%%
+
+%%project%%
+
+*IN HTML* (with additional variable magic)
+
+<span myvar="this is a var!">
+%%notdefined%%
+
+%%username%%
+
+%%email%%
+
+%%project%%
+
+%%myvar%%
+</span>
+
+
+== All done!==
+
+Hope you enjoyed.
