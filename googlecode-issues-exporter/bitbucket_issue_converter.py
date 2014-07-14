@@ -42,7 +42,7 @@ class GoogleCodeIssue(object):
     """
     self._issue = issue
 
-  def GetAssignee(self):
+  def GetOwner(self):
     """Get an assignee username from a Google Code issue.
 
     Returns:
@@ -50,7 +50,7 @@ class GoogleCodeIssue(object):
       repository owner if no mapping or email address exists.
     """
     if "owner" not in self._issue:
-      return self.GetOwner()
+      return self.GetAuthor()
 
     return self._issue["owner"]["name"]
 
@@ -107,7 +107,7 @@ class GoogleCodeIssue(object):
     """
     return "critical"
 
-  def GetOwner(self):
+  def GetAuthor(self):
     """Get an owner username from a Google Code issue.
 
     Returns:
@@ -223,7 +223,7 @@ class GoogleCodeComment(object):
     """
     return self.GetCreatedOn()
 
-  def GetUser(self):
+  def GetAuthor(self):
     """Get an owner username from a Google Code issue.
 
     Returns:
@@ -250,14 +250,14 @@ class BitBucketIssue(object):
     """
     self._issue = googlecode_issue
     self._dict = {
-        "assignee": self._issue.GetAssignee(),
+        "assignee": self._issue.GetOwner(),
         "content": self._issue.GetContent(),
         "content_updated_on": self._issue.GetContentUpdatedOn(),
         "created_on": self._issue.GetCreatedOn(),
         "id": self._issue.GetId(),
         "kind": self._issue.GetKind(),
         "priority": self._issue.GetPriority(),
-        "reporter": self._issue.GetReporter(),
+        "reporter": self._issue.GetAuthor(),
         "status": self._issue.GetStatus(),
         "title": self._issue.GetTitle(),
         "updated_on": self._issue.GetUpdatedOn()
@@ -292,7 +292,7 @@ class BitBucketComment(object):
         "id": self._comment.GetId(),
         "issue": self._comment.GetIssueId(),
         "updated_on": self._comment.GetUpdatedOn(),
-        "user": self._comment.GetUser()
+        "user": self._comment.GetAuthor()
     }
 
   def ToDict(self):
@@ -348,12 +348,12 @@ class IssueConverter(object):
 
       # Set assignee to appropriate BitBucket user
       bitbucket_issue_assignee = self._assignee_data[
-          googlecode_issue.GetAssignee()]
+          googlecode_issue.GetOwner()]
       bitbucket_issue.SetAssignee(bitbucket_issue_assignee)
 
       # Set reporter to appropriate BitBucket user
       bitbucket_issue_reporter = self._assignee_data[
-          googlecode_issue.GetReporter()]
+          googlecode_issue.GetAuthor()]
       bitbucket_issue.SetReporter(bitbucket_issue_reporter)
 
       # Append issue to JSON
@@ -362,8 +362,9 @@ class IssueConverter(object):
       # Extract Google Code comments, create equivalent BitBucket comments,
       # and append to BitBucket comments dict
       googlecode_comments = googlecode_issue.GetComments()
-      bitbucket_comments.append(self.CreateBitBucketComments(
-          googlecode_issue.GetId(), googlecode_comments))
+      bitbucket_comments_data = self.CreateBitBucketComments(
+          googlecode_issue.GetId(), googlecode_comments)
+      bitbucket_comments.append(bitbucket_comments_data)
 
     return {
         "issues": bitbucket_issues,
@@ -394,7 +395,7 @@ class IssueConverter(object):
 
       # Set user to appropriate BitBucket user
       bitbucket_comment_user = self._assignee_data[
-          googlecode_comment.GetUser()]
+          googlecode_comment.GetAuthor()]
       bitbucket_comment.SetUser(bitbucket_comment_user)
 
       # Append comment to JSON
@@ -443,8 +444,8 @@ def main(args):
       break
 
   if issue_data is None:
-    raise ProjectNotFoundError("Project %s not found" % parsed_args.project_name
-                              )
+    raise ProjectNotFoundError(
+        "Project %s not found" % parsed_args.project_name)
 
   # Load assignee data from generated user mapping JSON
   assignee_file = open(parsed_args.assignee_file_path)
@@ -453,8 +454,8 @@ def main(args):
   # Set default issue kind (defaults to 'bug')
   default_issue_kind = parsed_args.default_issue_kind
 
-  issue_converter = IssueConverter(issue_data, assignee_data, default_issue_kind
-                                  )
+  issue_converter = IssueConverter(
+      issue_data, assignee_data, default_issue_kind)
   issue_converter.Convert()
   print "\nDone!\n"
 

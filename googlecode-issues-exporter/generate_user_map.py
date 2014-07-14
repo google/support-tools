@@ -38,11 +38,11 @@ def _CreateUsersDict(issue_data):
     googlecode_issue = GoogleCodeIssue(issue)
 
     # Add reporting user, if they aren't already
-    reporting_user = googlecode_issue.GetReporter()
+    reporting_user = googlecode_issue.GetAuthor()
     if reporting_user not in users:
       users[reporting_user] = reporting_user
 
-    assignee_user = googlecode_issue.GetAssignee()
+    assignee_user = googlecode_issue.GetOwner()
     # Add assignee user, if they aren't already
     if assignee_user not in users:
       users[assignee_user] = assignee_user
@@ -50,7 +50,7 @@ def _CreateUsersDict(issue_data):
     googlecode_comments = googlecode_issue.GetComments()
     for comment in googlecode_comments:
       googlecode_comment = GoogleCodeComment(comment, googlecode_issue.GetId())
-      commenting_user = googlecode_comment.GetUser()
+      commenting_user = googlecode_comment.GetAuthor()
       if commenting_user not in users:
         users[commenting_user] = commenting_user
 
