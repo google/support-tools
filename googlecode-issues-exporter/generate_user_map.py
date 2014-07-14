@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tool for generating a user mapping from Google Code user to BitBucket user. 
+"""Tool for generating a user mapping from Google Code user to BitBucket user.
 """
 
 import argparse
@@ -21,6 +21,42 @@ import sys
 
 from bitbucket_issue_converter import GoogleCodeComment
 from bitbucket_issue_converter import GoogleCodeIssue
+from bitbucket_issue_converter import ProjectNotFoundError
+
+
+def _CreateUsersDict(issue_data):
+  """Extract users from list of issues into a dict.
+
+  Args:
+    issue_data: Issue data
+
+  Returns:
+    Dict of users associated with a list of issues
+  """
+  users = {}
+  for issue in issue_data:
+    googlecode_issue = GoogleCodeIssue(issue)
+
+    # Add reporting user, if they aren't already
+    reporting_user = googlecode_issue.GetReporter()
+    if reporting_user not in users:
+      users[reporting_user] = reporting_user
+
+    assignee_user = googlecode_issue.GetAssignee()
+    # Add assignee user, if they aren't already
+    if assignee_user not in users:
+      users[assignee_user] = assignee_user
+
+    googlecode_comments = googlecode_issue.GetComments()
+    for comment in googlecode_comments:
+      googlecode_comment = GoogleCodeComment(comment, googlecode_issue.GetId())
+      commenting_user = googlecode_comment.GetUser()
+      if commenting_user not in users:
+        users[commenting_user] = commenting_user
+
+  return {
+      "users": users
+  }
 
 
 def main(args):
@@ -41,9 +77,7 @@ def main(args):
                       "export")
   parsed_args, unused_unknown_args = parser.parse_known_args(args)
 
-  assignee_data = None
   issue_data = None
-  issue_converter = None
 
   user_file = open(parsed_args.issue_file_path)
   user_data = json.load(user_file)
@@ -55,34 +89,15 @@ def main(args):
       break
 
   if issue_data is None:
-    raise ProjectNotFoundError("Project %s not found" % parsed_args.project_name)
+    raise ProjectNotFoundError(
+        "Project %s not found" % parsed_args.project_name)
 
-  users = {}
-
-  for issue in issue_data:
-    googlecode_issue = GoogleCodeIssue(issue)
-      
-    # Add reporting user, if they aren't already
-    reporting_user = googlecode_issue.GetReporter()
-    if reporting_user not in users:
-      users[reporting_user] = reporting_user
-
-    assignee_user = googlecode_issue.GetAssignee()
-    # Add assignee user, if they aren't already
-    if assignee_user not in users:
-      users[assignee_user] = assignee_user
-
-    googlecode_comments = googlecode_issue.GetComments()
-    for comment in googlecode_comments:
-      googlecode_comment = GoogleCodeComment(comment, googlecode_issue.GetId())
-      commenting_user = googlecode_comment.GetUser()
-      if commenting_user not in users:
-        users[commenting_user] = commenting_user
-
-  user_data = {"users":users}
+  users = _CreateUsersDict(issue_data)
 
   with open("users.json", "w") as users_file:
-    users_file.write(unicode(json.dumps(user_data, sort_keys=True, indent=4, separators=(',', ': '), ensure_ascii=False)))
+    user_json = json.dumps(users, sort_keys=True, indent=4,
+                           separators=(",", ": "), ensure_ascii=False)
+    users_file.write(unicode(user_json))
     print "\nCreated file users.json\n"
 
 if __name__ == "__main__":

@@ -23,8 +23,10 @@ import sys
 class InvalidUserError(Exception):
   """Error for an invalid user."""
 
+
 class ProjectNotFoundError(Exception):
   """Error for a non-existent project."""
+
 
 class GoogleCodeIssue(object):
   """Google Code issue.
@@ -32,13 +34,13 @@ class GoogleCodeIssue(object):
   Handles parsing and viewing a Google Code issue.
   """
 
-  def __init__(self, googlecode_issue):
+  def __init__(self, issue):
     """Initialize the GoogleCodeIssue.
 
     Args:
       issue: The Google Code Issue.
     """
-    self._issue = googlecode_issue
+    self._issue = issue
 
   def GetAssignee(self):
     """Get an assignee username from a Google Code issue.
@@ -48,8 +50,8 @@ class GoogleCodeIssue(object):
       repository owner if no mapping or email address exists.
     """
     if "owner" not in self._issue:
-        return GetOwner()
-    
+      return self.GetOwner()
+
     return self._issue["owner"]["name"]
 
   def GetContent(self):
@@ -86,6 +88,7 @@ class GoogleCodeIssue(object):
 
   def GetKind(self):
     """Get the kind from a Google Code issue.
+
     TODO(oud): Figure out how to get issue kind. Default to bug for now.
 
     Returns:
@@ -95,7 +98,8 @@ class GoogleCodeIssue(object):
 
   def GetPriority(self):
     """Get the priority from a Google Code issue.
-    TODO(oud): Figure out how to get issue priority. Default to critical for 
+
+    TODO(oud): Figure out how to get issue priority. Default to critical for
     now.
 
     Returns:
@@ -111,7 +115,7 @@ class GoogleCodeIssue(object):
       repository owner if no mapping or email address exists.
     """
     if "author" not in self._issue:
-        return None
+      return None
 
     return self._issue["author"]["name"]
 
@@ -119,12 +123,12 @@ class GoogleCodeIssue(object):
     """Get the reporter username from a Google Code issue.
 
     Returns:
-      The Google Code username who reported the issue or the repository owner 
+      The Google Code username who reported the issue or the repository owner
       if no mapping or email address exists.
     """
     if "author" not in self._issue:
-        return GetOwner()
-    
+      return self.GetOwner()
+
     return self._issue["author"]["name"]
 
   def GetStatus(self):
@@ -147,7 +151,7 @@ class GoogleCodeIssue(object):
     return self._issue["title"]
 
   def GetUpdatedOn(self):
-    """Get the date the issue was last updated.    
+    """Get the date the issue was last updated.
 
     Returns:
       The time stamp when the issue was last updated
@@ -156,11 +160,12 @@ class GoogleCodeIssue(object):
 
   def GetComments(self):
     """Get the list of comments for the issue (if any).
-    
+
     Returns:
       The list of comments attached to the issue
     """
     return self._issue["items"]
+
 
 class GoogleCodeComment(object):
   """Google Code Comment.
@@ -172,7 +177,8 @@ class GoogleCodeComment(object):
     """Initialize the GoogleCodeComment.
 
     Args:
-      issue: The Google Code Comment.
+      googlecode_comment: The Google Code Comment.
+      issue_id: The issue id
     """
     self._comment = googlecode_comment
     self._issue_id = issue_id
@@ -210,7 +216,7 @@ class GoogleCodeComment(object):
     return self._issue_id
 
   def GetUpdatedOn(self):
-    """Get the date the issue comment content was last updated.    
+    """Get the date the issue comment content was last updated.
 
     Returns:
       The time stamp when the issue comment content was last updated
@@ -225,9 +231,10 @@ class GoogleCodeComment(object):
       repository owner if no mapping or email address exists.
     """
     if "author" not in self._comment:
-        return None
+      return None
 
     return self._comment["author"]["name"]
+
 
 class BitBucketIssue(object):
   """BitBucket issue.
@@ -239,19 +246,32 @@ class BitBucketIssue(object):
     """Initialize the BitBucketIssue from a GoogleCodeIssue.
 
     Args:
-      issue: The Google Code Issue.
+      googlecode_issue: The Google Code Issue.
     """
     self._issue = googlecode_issue
-    self._dict = {"assignee":self._issue.GetAssignee(), "content":self._issue.GetContent(), "content_updated_on":self._issue.GetContentUpdatedOn(), "created_on":self._issue.GetCreatedOn(), "id":self._issue.GetId(), "kind":self._issue.GetKind(), "priority":self._issue.GetPriority(), "reporter":self._issue.GetReporter(), "status":self._issue.GetStatus(), "title":self._issue.GetTitle(), "updated_on":self._issue.GetUpdatedOn()}
+    self._dict = {
+        "assignee": self._issue.GetAssignee(),
+        "content": self._issue.GetContent(),
+        "content_updated_on": self._issue.GetContentUpdatedOn(),
+        "created_on": self._issue.GetCreatedOn(),
+        "id": self._issue.GetId(),
+        "kind": self._issue.GetKind(),
+        "priority": self._issue.GetPriority(),
+        "reporter": self._issue.GetReporter(),
+        "status": self._issue.GetStatus(),
+        "title": self._issue.GetTitle(),
+        "updated_on": self._issue.GetUpdatedOn()
+    }
 
   def SetAssignee(self, assignee):
     self._dict["assignee"] = assignee
-  
+
   def SetReporter(self, reporter):
     self._dict["reporter"] = reporter
 
   def ToDict(self):
-    return self._dict 
+    return self._dict
+
 
 class BitBucketComment(object):
   """BitBucket comment.
@@ -263,16 +283,24 @@ class BitBucketComment(object):
     """Initialize the BitBucketComment from a GoogleCodeComment.
 
     Args:
-      issue: The Google Code Comment.
+      googlecode_comment: The Google Code Comment.
     """
     self._comment = googlecode_comment
-    self._dict = {"content":self._comment.GetContent(), "created_on":self._comment.GetCreatedOn(), "id":self._comment.GetId(), "issue":self._comment.GetIssueId(), "updated_on":self._comment.GetUpdatedOn(), "user":self._comment.GetUser()}
+    self._dict = {
+        "content": self._comment.GetContent(),
+        "created_on": self._comment.GetCreatedOn(),
+        "id": self._comment.GetId(),
+        "issue": self._comment.GetIssueId(),
+        "updated_on": self._comment.GetUpdatedOn(),
+        "user": self._comment.GetUser()
+    }
 
   def ToDict(self):
     return self._dict
 
   def SetUser(self, user):
     self._dict["user"] = user
+
 
 class IssueConverter(object):
   """Issue Converter.
@@ -282,13 +310,31 @@ class IssueConverter(object):
 
   def __init__(self, issue_json_data, assignee_data, default_issue_kind="bug"):
     """Initialize the IssuesConverter.
+
+    Args:
+      issue_json_data: The JSON file from Google Takeout
+      assignee_data: The generated JSON file from generate_user_map.py
+      default_issue_kind: Default issue kind (initially set to bug)
     """
     self._issue_data = issue_json_data
-    self._default_issue_kind=default_issue_kind
+    self._default_issue_kind = default_issue_kind
     self._assignee_data = assignee_data
 
   def Convert(self):
     """The primary function that runs this script.
+    """
+    issues_data = self.CreateBitBucketIssues()
+
+    with open("db-1.0.json", "w") as issues_file:
+      issues_json = json.dumps(issues_data, sort_keys=True, indent=4,
+                               separators=(",", ": "), ensure_ascii=False)
+      issues_file.write(unicode(issues_json))
+
+  def CreateBitBucketIssues(self):
+    """Create BitBucket issues dict.
+
+    Returns:
+      BitBucket issues dict
     """
     bitbucket_issues = []
     bitbucket_comments = []
@@ -299,37 +345,62 @@ class IssueConverter(object):
 
       # Convert to BitBucket issue
       bitbucket_issue = BitBucketIssue(googlecode_issue)
-      
+
       # Set assignee to appropriate BitBucket user
-      bitbucket_issue_assignee = self._assignee_data[googlecode_issue.GetAssignee()]
+      bitbucket_issue_assignee = self._assignee_data[
+          googlecode_issue.GetAssignee()]
       bitbucket_issue.SetAssignee(bitbucket_issue_assignee)
 
       # Set reporter to appropriate BitBucket user
-      bitbucket_issue_reporter = self._assignee_data[googlecode_issue.GetReporter()]
+      bitbucket_issue_reporter = self._assignee_data[
+          googlecode_issue.GetReporter()]
       bitbucket_issue.SetReporter(bitbucket_issue_reporter)
 
       # Append issue to JSON
       bitbucket_issues.append(bitbucket_issue.ToDict())
 
+      # Extract Google Code comments, create equivalent BitBucket comments,
+      # and append to BitBucket comments dict
       googlecode_comments = googlecode_issue.GetComments()
-      for comment in googlecode_comments:
-        # Extract Google Code comment from JSON data
-        googlecode_comment = GoogleCodeComment(comment, googlecode_issue.GetId())
+      bitbucket_comments.append(self.CreateBitBucketComments(
+          googlecode_issue.GetId(), googlecode_comments))
 
-        # Convert to BitBucket comment
-        bitbucket_comment = BitBucketComment(googlecode_comment)
+    return {
+        "issues": bitbucket_issues,
+        "comments": bitbucket_comments,
+        "meta": {
+            "default_kind": self._default_issue_kind
+        }
+    }
 
-        # Set user to appropriate BitBucket user
-        bitbucket_comment_user = self._assignee_data[googlecode_comment.GetUser()]
-        bitbucket_comment.SetUser(bitbucket_issue_assignee)
+  def CreateBitBucketComments(self, issue_id, issue_comments):
+    """Create BitBucket comments dict for a particular issue.
 
-        # Append comment to JSON
-        bitbucket_comments.append(bitbucket_comment.ToDict())
+    Args:
+      issue_id: Issue ID
+      issue_comments: Comments associated with specified issue
 
-    issues_data = {"issues":bitbucket_issues, "comments":bitbucket_comments, "meta":{"default_kind":self._default_issue_kind}}
+    Returns:
+      BitBucket comments dict for an issue
+    """
+    bitbucket_comments = []
+    for comment in issue_comments:
+      # Extract Google Code comment from JSON data
+      googlecode_comment = GoogleCodeComment(
+          comment, issue_id)
 
-    with open("db-1.0.json", "w") as issues_file:
-      issues_file.write(unicode(json.dumps(issues_data, sort_keys=True, indent=4, separators=(',', ': '), ensure_ascii=False)))
+      # Convert to BitBucket comment
+      bitbucket_comment = BitBucketComment(googlecode_comment)
+
+      # Set user to appropriate BitBucket user
+      bitbucket_comment_user = self._assignee_data[
+          googlecode_comment.GetUser()]
+      bitbucket_comment.SetUser(bitbucket_comment_user)
+
+      # Append comment to JSON
+      bitbucket_comments.append(bitbucket_comment.ToDict())
+    return bitbucket_comments
+
 
 def main(args):
   """The main function.
@@ -351,7 +422,9 @@ def main(args):
                       help="The path to the file containing a mapping from"
                       "email address to github username")
   parser.add_argument("--default_issue_kind", required=False,
-                      help="A non-null string containing one of the following values: bug, enhancement, proposal, task. Defaults to bug.")
+                      help="A non-null string containing one of the following"
+                      "values: bug, enhancement, proposal, task. Defaults to"
+                      "bug.")
   parsed_args, unused_unknown_args = parser.parse_known_args(args)
 
   assignee_data = None
@@ -370,7 +443,8 @@ def main(args):
       break
 
   if issue_data is None:
-    raise ProjectNotFoundError("Project %s not found" % parsed_args.project_name)
+    raise ProjectNotFoundError("Project %s not found" % parsed_args.project_name
+                              )
 
   # Load assignee data from generated user mapping JSON
   assignee_file = open(parsed_args.assignee_file_path)
@@ -378,14 +452,11 @@ def main(args):
 
   # Set default issue kind (defaults to 'bug')
   default_issue_kind = parsed_args.default_issue_kind
-   
-  issue_converter = IssueConverter(issue_data, assignee_data, default_issue_kind)
 
-  try:
-    issue_converter.Convert()
-    print "\nDone!\n"
-  except IOError, e:
-    print "[IOError] ERROR: %s" % e
+  issue_converter = IssueConverter(issue_data, assignee_data, default_issue_kind
+                                  )
+  issue_converter.Convert()
+  print "\nDone!\n"
 
 if __name__ == "__main__":
   main(sys.argv)
