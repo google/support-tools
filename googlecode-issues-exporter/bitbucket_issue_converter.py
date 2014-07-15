@@ -13,6 +13,12 @@
 # limitations under the License.
 
 """Tool for converting Google Code issues to a format accepted by BitBucket.
+
+Most BitBucket concepts map cleanly to their Google Code equivalent, with the
+exception of the following:
+ - Issue Assignee is called an Owner
+ - Issue Reporter is called an Author
+ - Comment User is called an Author
 """
 
 import argparse
@@ -43,10 +49,10 @@ class GoogleCodeIssue(object):
     self._issue = issue
 
   def GetOwner(self):
-    """Get an assignee username from a Google Code issue.
+    """Get the owner username of a Google Code issue.
 
     Returns:
-      The Google Code username that the issue is assigned to or the
+      The Google Code username that owns the issue or the
       repository owner if no mapping or email address exists.
     """
     if "owner" not in self._issue:
@@ -108,7 +114,7 @@ class GoogleCodeIssue(object):
     return "critical"
 
   def GetAuthor(self):
-    """Get an owner username from a Google Code issue.
+    """Get the author's username of a Google Code issue.
 
     Returns:
       The Google Code username that the issue is authored by or the
@@ -116,18 +122,6 @@ class GoogleCodeIssue(object):
     """
     if "author" not in self._issue:
       return None
-
-    return self._issue["author"]["name"]
-
-  def GetReporter(self):
-    """Get the reporter username from a Google Code issue.
-
-    Returns:
-      The Google Code username who reported the issue or the repository owner
-      if no mapping or email address exists.
-    """
-    if "author" not in self._issue:
-      return self.GetOwner()
 
     return self._issue["author"]["name"]
 
@@ -224,10 +218,10 @@ class GoogleCodeComment(object):
     return self.GetCreatedOn()
 
   def GetAuthor(self):
-    """Get an owner username from a Google Code issue.
+    """Get the author's username of a Google Code issue comment.
 
     Returns:
-      The Google Code username that the issue is authored by or the
+      The Google Code username that the issue comment is authored by or the
       repository owner if no mapping or email address exists.
     """
     if "author" not in self._comment:
