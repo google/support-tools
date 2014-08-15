@@ -13,15 +13,14 @@
 # limitations under the License.
 
 """Tool for uploading Google Code issues to GitHub.
-  TODO(talarico): Make this externalizable, talk to ojarjur@.
 
   Issue migration from Google Code to GitHub.
   This tools allows you to easily move your downloaded Google Code issues to
   GitHub.
 
   To use this tool:
-  1. TODO(talarico): Document steps for exporting project issues via Google
-     Takeout.
+  1. Follow the instructions at https://code.google.com/p/support-tools/ to
+     download your issues from Google.
   2. Go to https://github.com/settings/applications and create a new "Personal
      Access Token".
   3. Get the GitHub username of the owner of the repository and the repositories
@@ -145,7 +144,6 @@ class GitHubService(object):
       if _CheckSuccessful(response):
         return response, json.loads(content)
       elif self._RequestLimitReached():
-        # TODO(talarico): Add a test for this case.
         requests -= 1
         self._WaitForApiThrottlingToEnd()
     return response, json.loads(content)
