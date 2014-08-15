@@ -95,23 +95,24 @@ class GoogleCodeIssue(object):
   def GetKind(self):
     """Get the kind from a Google Code issue.
 
-    TODO(oud): Figure out how to get issue kind. Default to bug for now.
-
     Returns:
-      The issue kind
+      The issue kind, if none is found defaults to 'Defect'
     """
-    return "bug"
+    types = [t for t in self._issue["labels"] if "Type-" in t]
+    if types:
+      return types[0][len("Type-"):]
+    return "Defect"
 
   def GetPriority(self):
     """Get the priority from a Google Code issue.
 
-    TODO(oud): Figure out how to get issue priority. Default to critical for
-    now.
-
     Returns:
-      The issue priority
+      The issue priority, if none is found defaults to 'Medium'
     """
-    return "critical"
+    priorities = [p for p in self._issue["labels"] if "Priority-" in p]
+    if priorities:
+      return priorities[0][len("Priority-"):]
+    return "Medium"
 
   def GetAuthor(self):
     """Get the author's username of a Google Code issue.
