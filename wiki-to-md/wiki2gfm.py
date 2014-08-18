@@ -19,13 +19,10 @@
   Reference for Github-flavored Markdown:
       https://help.github.com/articles/github-flavored-markdown
 
-  The conversion process is not always able to be made; for example,
+  The conversion process is not always directly possible; for example,
   wiki pragma statements have no direct equivalent for GFM. In cases
   where no direct conversion can be made, or the input may have unexpected
   output, a warning will be issued.
-
-  To use this tool:
-  1. TODO(ngorski): Simple steps to follow.
 """
 import argparse
 
@@ -59,7 +56,7 @@ def main(args):
   """
   parser = argparse.ArgumentParser(
       description="Converts a Google Code wiki page to GitHub-flavored "
-      "Markdown. For more information, see TODO(ngorski).")
+      "Markdown.")
 
   parser.add_argument("--input_file", required=True,
                       help="The input Google Code Wiki file")
@@ -98,7 +95,8 @@ def main(args):
             if f.endswith(".wiki"):
               wikipages.append(f[:-len(".wiki")])
 
-      # TODO(ngorski): Get from a file that the issue migration script provides.
+      # Fill this will a mapping from Google Code issue
+      # to GitHub issue to automate that conversion.
       issue_map = {}
 
       # Prepare the handlers and converter.
