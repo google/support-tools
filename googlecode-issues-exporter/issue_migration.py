@@ -46,6 +46,7 @@
 
 import argparse
 import json
+import re
 import sys
 import time
 import urllib
@@ -60,6 +61,10 @@ MAX_HTTP_REQUESTS = 3
 # The time (in seconds) to wait before trying to see if more requests are
 # available.
 REQUEST_CHECK_TIME = 60 * 5
+# A real kludge. GitHub orders the comments based on time alone, and because
+# we upload ours relatively quickly we need at least a second in between
+# comments to keep them in chronological order.
+COMMENT_DELAY = 2
 
 
 class Error(Exception):
@@ -89,6 +94,25 @@ def _CheckSuccessful(response):
     True if the request was succesful.
   """
   return "status" in response and 200 <= int(response["status"]) < 300
+
+
+def _FixUpComment(comment):
+  formatted = []
+  preformat_rest_of_comment = False
+  for line in comment.split("\n"):
+    if re.match(r'^#+ ', line) or re.match(r'^Index: ', line):
+      preformat_rest_of_comment = True
+    elif '--- cut here ---' in line:
+      preformat_rest_of_comment = True
+    if preformat_rest_of_comment:
+      formatted.append("    %s" % line)
+    else:
+      # "#3" style commends get converted into links to issue #3, etc.
+      # We don't want this. There's no way to escape this so put a non
+      # breaking space to prevent.
+      line = re.sub("#(\d+)", "#&nbsp;\g<1>", line)
+      formatted.append(line)
+  return '\n'.join(formatted)
 
 
 class GitHubService(object):
@@ -276,9 +300,15 @@ class GitHubIssueService(object):
       github_service: The GitHub service.
     """
     self._github_service = github_service
-    self._github_issues_url = ("/repos/%s/%s/issues" %
-                               (self._github_service.github_owner_username,
-                                self._github_service.github_repo_name))
+    # If the repo is of the form "login/reponame" then don't inject the
+    # username as it (or the organization) is already embedded.
+    if '/' in self._github_service.github_repo_name:
+      self._github_issues_url = "/repos/%s/issues" % \
+          self._github_service.github_repo_name
+    else:
+      self._github_issues_url = ("/repos/%s/%s/issues" %
+                                 (self._github_service.github_owner_username,
+                                  self._github_service.github_repo_name))
 
   def GetIssues(self, state="open"):
     """Gets all of the issue for the GitHub repository.
@@ -334,18 +364,34 @@ class GitHubIssueService(object):
     json_state = json.dumps({"state": "closed"})
     return self._github_service.PerformPatchRequest(issue_url, json_state)
 
-  def CreateComment(self, issue_number, comment):
+  def CreateComment(self, issue_number, issue_id, comment, author, comment_date,
+                    comment_id, project_name):
     """Creates a comment on a GitHub issue.
 
     Args:
       issue_number: The issue number.
+      issue_id: The Google Code issue id.
       comment: The comment text.
+      author: The author of the comment.
+      comment_date: The date the comment was made.
+      comment_id: The Google Code comment id.
+      project_name: The Google Code project name.
 
     Returns:
       A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
       its content from the server which is decoded JSON.
     """
     comment_url = "%s/%d/comments" % (self._github_issues_url, issue_number)
+    if comment == '':
+      comment = '&lt;empty&gt;'
+    else:
+      comment = _FixUpComment(comment)
+
+    orig_comment_url = "https://code.google.com/p/%s/issues/detail?id=%s#c%s" % \
+        (project_name, issue_id, comment_id)
+
+    comment = "Comment [#%s](%s) originally posted by %s on %s:\n\n%s" % \
+        (comment_id, orig_comment_url, author, comment_date, comment)
     json_body = json.dumps({"body": comment})
     return self._github_service.PerformPostRequest(comment_url, json_body)
 
@@ -379,7 +425,8 @@ class IssueExporter(object):
   Handles the uploading issues from Google Code to GitHub.
   """
 
-  def __init__(self, github_service, issue_json_data, assignee_data=None):
+  def __init__(self, github_service, issue_json_data, project_name,
+               assignee_data=None):
     """Initialize the IssueExporter.
 
     Args:
@@ -397,6 +444,7 @@ class IssueExporter(object):
     self._user_service = None
     self._previously_created_issues = set()
     self._assignee_map = {}
+    self._project_name = project_name
 
     self._issue_total = 0
     self._issue_number = 0
@@ -425,6 +473,8 @@ class IssueExporter(object):
 
     user_map_list = self._assignee_data.split("\n")
     for line in filter(None, user_map_list):
+      if line.startswith('#'):
+        continue
       user_map = line.split(":")
       if len(user_map) is 2:
         username = user_map[1].strip()
@@ -470,7 +520,7 @@ class IssueExporter(object):
 
     This displays the current status of the script to the user.
     """
-    feed_string = ("\rIssue: %d/%d -> Comment: %d/%d" %
+    feed_string = ("\rIssue: %d/%d -> Comment: %d/%d        " %
                    (self._issue_number, self._issue_total,
                     self._comment_number, self._comment_total))
     sys.stdout.write(feed_string)
@@ -499,17 +549,12 @@ class IssueExporter(object):
       # Newline character at the beginning of the line to allows for in-place
       # updating of the counts of the issues and comments.
       print "\nFailed to create issue: %s" % (issue_title)
-      return -1
+      return -1, False
     issue_number = self._issue_service.GetIssueNumber(content)
 
-    if not is_open:
-      response, content = self._issue_service.CloseIssue(issue_number)
-      if not _CheckSuccessful(response):
-        print "\nFailed to close GitHub issue #%s" % (issue_number)
+    return issue_number, is_open
 
-    return issue_number
-
-  def _CreateGitHubComments(self, comments, issue_number):
+  def _CreateGitHubComments(self, comments, issue_number, issue_id):
     """Converts a list of issue comment from Google Code to GitHub.
 
     This will take a list of Google Code issue comments and create
@@ -526,11 +571,17 @@ class IssueExporter(object):
       self._comment_number += 1
       self.UpdatedIssueFeed()
       response, _ = self._issue_service.CreateComment(issue_number,
-                                                      comment["content"])
+                                                      issue_id,
+                                                      comment["content"],
+                                                      comment["author"]["name"],
+                                                      comment["published"],
+                                                      comment["id"],
+                                                      self._project_name)
 
       if not _CheckSuccessful(response):
         print ("\nFailed to create issue comment (%s) for GitHub issue #%d"
                % (comment["content"], issue_number))
+      time.sleep(COMMENT_DELAY)
 
   def Start(self):
     """The primary function that runs this script.
@@ -555,15 +606,34 @@ class IssueExporter(object):
 
       issue["assignee"] = self._GetIssueAssignee(issue)
 
+      # code.google.com always has one comment (item #0) which is the issue
+      # description.
+      first_item = issue["items"].pop(0)
+
+      content = _FixUpComment(first_item["content"])
+      author = first_item["author"]["name"]
+      create_date = first_item["published"]
+      issue_id = issue["id"]
+      url = "https://code.google.com/p/%s/issues/detail?id=%s" % \
+          (self._project_name, issue_id)
+      body = "Original [issue %s](%s) created by %s on %s:\n\n%s" % \
+          (issue_id, url, author, create_date, content)
+      issue["body"] = body
+
       self._issue_number += 1
       self.UpdatedIssueFeed()
 
-      issue_number = self._CreateGitHubIssue(issue)
+      issue_number, is_open = self._CreateGitHubIssue(issue)
       if issue_number < 0:
         continue
 
       if "items" in issue:
-        self._CreateGitHubComments(issue["items"], issue_number)
+        self._CreateGitHubComments(issue["items"], issue_number, issue_id)
+
+      if not is_open:
+        response, content = self._issue_service.CloseIssue(issue_number)
+        if not _CheckSuccessful(response):
+          print "\nFailed to close GitHub issue #%s" % (issue_number)
 
     if skipped_issues > 0:
       print ("\nSkipped %d/%d issue previously uploaded.  Most likely due to"
@@ -624,9 +694,11 @@ def main(args):
   if parsed_args.assignee_file_path:
     assignee_data = open(parsed_args.assignee_file_path)
     issue_exporter = IssueExporter(github_service, issue_data,
+                                   parsed_args.project_name,
                                    assignee_data.read())
   else:
-    issue_exporter = IssueExporter(github_service, issue_data)
+    issue_exporter = IssueExporter(github_service, issue_data,
+                                   parsed_args.project_name)
 
   try:
     issue_exporter.Init()
