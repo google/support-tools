@@ -608,7 +608,7 @@ class IssueExporter(object):
 
       # code.google.com always has one comment (item #0) which is the issue
       # description.
-      first_item = issue["items"].pop(0)
+      first_item = issue["comments"]["items"].pop(0)
 
       content = _FixUpComment(first_item["content"])
       author = first_item["author"]["name"]
@@ -627,8 +627,8 @@ class IssueExporter(object):
       if issue_number < 0:
         continue
 
-      if "items" in issue:
-        self._CreateGitHubComments(issue["items"], issue_number, issue_id)
+      if "items" in issue["comments"]:
+        self._CreateGitHubComments(issue["comments"]["items"], issue_number, issue_id)
 
       if not is_open:
         response, content = self._issue_service.CloseIssue(issue_number)
@@ -684,7 +684,7 @@ def main(args):
 
   for project in user_projects:
     if parsed_args.project_name in project["name"]:
-      issue_data = project["items"]
+      issue_data = project["issues"]["items"]
       break
 
   if issue_data is None:
