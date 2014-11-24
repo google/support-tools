@@ -41,17 +41,17 @@
          --github_owner_username=<your-github-username> \
          --github_repo_name=<repository-name> \
          --issue_file_path=<path-to-issue-file> \
-         --assignee_file_path="<optional-path-to-user-mapping-file>"
+         --user_file_path="<optional-path-to-user-mapping-file>"
 """
 
 import argparse
 import json
-import re
 import sys
 import time
 import urllib
 
 import httplib2
+import issues
 
 
 # The URL used for calls to GitHub.
@@ -67,21 +67,6 @@ REQUEST_CHECK_TIME = 60 * 5
 COMMENT_DELAY = 2
 
 
-class Error(Exception):
-  """Base error class."""
-
-
-class InvalidUserError(Error):
-  """Error for an invalid user."""
-
-
-class InvalidUserMappingError(Error):
-  """Error for an invalid user mapping file."""
-
-
-class ProjectNotFoundError(Error):
-  """Error for a non-existent project."""
-
 
 def _CheckSuccessful(response):
   """Checks if the request was successful.
@@ -94,25 +79,6 @@ def _CheckSuccessful(response):
     True if the request was succesful.
   """
   return "status" in response and 200 <= int(response["status"]) < 300
-
-
-def _FixUpComment(comment):
-  formatted = []
-  preformat_rest_of_comment = False
-  for line in comment.split("\n"):
-    if re.match(r'^#+ ', line) or re.match(r'^Index: ', line):
-      preformat_rest_of_comment = True
-    elif '--- cut here ---' in line:
-      preformat_rest_of_comment = True
-    if preformat_rest_of_comment:
-      formatted.append("    %s" % line)
-    else:
-      # "#3" style commends get converted into links to issue #3, etc.
-      # We don't want this. There's no way to escape this so put a non
-      # breaking space to prevent.
-      line = re.sub("#(\d+)", "#&nbsp;\g<1>", line)
-      formatted.append(line)
-  return '\n'.join(formatted)
 
 
 class GitHubService(object):
@@ -244,7 +210,7 @@ class GitHubService(object):
         return
 
 
-class GitHubUserService(object):
+class UserService(issues.UserService):
   """GitHub user operations.
 
   Handles user operations on the GitHub API.
@@ -253,14 +219,14 @@ class GitHubUserService(object):
   GITHUB_USERS_URL = "/users"
 
   def __init__(self, github_service):
-    """Initialize the GitHubUserService.
+    """Initialize the UserService.
 
     Args:
       github_service: The GitHub service.
     """
     self._github_service = github_service
 
-  def GetUser(self, username):
+  def _GetUser(self, username):
     """Gets a GitHub user.
 
     Args:
@@ -282,24 +248,25 @@ class GitHubUserService(object):
     Returns:
       True if the username exists.
     """
-    response, _ = self.GetUser(username)
+    response, _ = self._GetUser(username)
     return _CheckSuccessful(response)
 
 
-class GitHubIssueService(object):
+class IssueService(issues.IssueService):
   """GitHub issue operations.
 
   Handles creating and updating issues and comments on the GitHub API.
   """
 
-  def __init__(self, github_service):
-    """Initialize the GitHubIssueService.
+  def __init__(self, github_service, comment_delay=COMMENT_DELAY):
+    """Initialize the IssueService.
 
 
     Args:
       github_service: The GitHub service.
     """
     self._github_service = github_service
+    self._comment_delay = comment_delay
     # If the repo is of the form "login/reponame" then don't inject the
     # username as it (or the organization) is already embedded.
     if '/' in self._github_service.github_repo_name:
@@ -322,7 +289,7 @@ class GitHubIssueService(object):
     Raises:
       IOError: An error occurred accessing previously created issues.
     """
-    issues = []
+    github_issues = []
     params = {"state": state, "per_page": 100, "page": 0}
     while True:
       params["page"] += 1
@@ -331,24 +298,39 @@ class GitHubIssueService(object):
       if not _CheckSuccessful(response):
         raise IOError("Failed to retrieve previous issues.")
       if not content:
-        return issues
+        return github_issues
       else:
-        issues += content
+        github_issues += content
+    return github_issues
 
-  def CreateIssue(self, issue):
+  def CreateIssue(self, googlecode_issue):
     """Creates a GitHub issue.
 
     Args:
-      issue: A dictionary matching the GitHub JSON format for a create request.
-             The dictionary will be encoded to JSON.
-             https://developer.github.com/v3/issues/#create-an-issue.
+      googlecode_issue: An instance of GoogleCodeIssue
 
     Returns:
-      A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
-      its content from the server which is decoded JSON.
+      The issue number of the new issue.
+
+    Raises:
+      issues.ServiceError: An error occurred creating the issue.
     """
-    return self._github_service.PerformPostRequest(
+    issue_title = googlecode_issue.GetTitle()
+    issue = {
+        "title": issue_title,
+        "body": googlecode_issue.GetDescription(),
+        "assignee": googlecode_issue.GetOwner(),
+        "labels": googlecode_issue.GetLabels(),
+    }
+    response, content = self._github_service.PerformPostRequest(
         self._github_issues_url, json.dumps(issue))
+
+    if not _CheckSuccessful(response):
+      # Newline character at the beginning of the line to allows for in-place
+      # updating of the counts of the issues and comments.
+      raise issues.ServiceError("\nFailed to create issue: %s" % (issue_title))
+
+    return self._GetIssueNumber(content)
 
   def CloseIssue(self, issue_number):
     """Closes a GitHub issue.
@@ -356,46 +338,43 @@ class GitHubIssueService(object):
     Args:
       issue_number: The issue number.
 
-    Returns:
-      A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
-      its content from the server which is decoded JSON.
+    Raises:
+      issues.ServiceError: An error occurred closing the issue.
     """
     issue_url = "%s/%d" % (self._github_issues_url, issue_number)
     json_state = json.dumps({"state": "closed"})
-    return self._github_service.PerformPatchRequest(issue_url, json_state)
+    response, _ = self._github_service.PerformPatchRequest(
+        issue_url, json_state)
+    if not _CheckSuccessful(response):
+      raise issues.ServiceError("\nFailed to close issue #%s" % (issue_number))
 
-  def CreateComment(self, issue_number, issue_id, comment, author, comment_date,
-                    comment_id, project_name):
+  def CreateComment(self, issue_number, source_issue_id,
+                    googlecode_comment, project_name):
     """Creates a comment on a GitHub issue.
 
     Args:
       issue_number: The issue number.
-      issue_id: The Google Code issue id.
-      comment: The comment text.
-      author: The author of the comment.
-      comment_date: The date the comment was made.
-      comment_id: The Google Code comment id.
+      source_issue_id: The Google Code issue id.
+      googlecode_comment: A GoogleCodeComment instance.
       project_name: The Google Code project name.
 
-    Returns:
-      A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
-      its content from the server which is decoded JSON.
+    Raises:
+      issues.ServiceError: An error occurred creating the comment.
     """
     comment_url = "%s/%d/comments" % (self._github_issues_url, issue_number)
-    if comment == '':
-      comment = '&lt;empty&gt;'
-    else:
-      comment = _FixUpComment(comment)
+    comment = googlecode_comment.GetDescription()
 
-    orig_comment_url = "https://code.google.com/p/%s/issues/detail?id=%s#c%s" % \
-        (project_name, issue_id, comment_id)
-
-    comment = "Comment [#%s](%s) originally posted by %s on %s:\n\n%s" % \
-        (comment_id, orig_comment_url, author, comment_date, comment)
     json_body = json.dumps({"body": comment})
-    return self._github_service.PerformPostRequest(comment_url, json_body)
+    response, _ = self._github_service.PerformPostRequest(
+        comment_url, json_body)
 
-  def GetIssueNumber(self, content):
+    if not _CheckSuccessful(response):
+      raise issues.ServiceError(
+          "\nFailed to create issue comment (%s) for issue #%d" %
+          (googlecode_comment.GetContent(), issue_number))
+    time.sleep(self._comment_delay)
+
+  def _GetIssueNumber(self, content):
     """Get the issue number from a newly created GitHub issue.
 
     Args:
@@ -404,241 +383,34 @@ class GitHubIssueService(object):
     Returns:
       The GitHub issue number.
     """
+    assert "number" in content, "nope %s" % content
     return content["number"]
 
-  def IsIssueOpen(self, issue):
-    """Check if an issue is marked as open.
 
-    Args:
-      issue: A dictionary matching the GitHub JSON format for a get request.
-             https://developer.github.com/v3/issues/#get-a-single-issue.
-
-    Returns:
-      True if the issue was open.
-    """
-    return "state" in issue and issue["state"] == "open"
-
-
-class IssueExporter(object):
-  """Issue Migration.
-
-  Handles the uploading issues from Google Code to GitHub.
+def ExportIssues(github_owner_username, github_repo_name, github_oauth_token,
+                 issue_file_path, project_name, user_file_path):
+  """Exports all issues for a given project.
   """
+  github_service = GitHubService(
+      github_owner_username, github_repo_name, github_oauth_token)
+  issue_service = IssueService(github_service)
+  user_service = UserService(github_service)
 
-  def __init__(self, github_service, issue_json_data, project_name,
-               assignee_data=None):
-    """Initialize the IssueExporter.
+  issue_data = issues.LoadIssueData(issue_file_path, project_name)
+  user_map = issues.LoadUserData(
+      user_file_path, github_owner_username, user_service)
 
-    Args:
-      github_service: The GitHub service.
-      issue_json_data: A data object of issues from Google Code.
-      assignee_data: A string of email addresses mapped to GitHub usernames
-          that are separated by ':'.  Each couple is separated by a newline.
-    """
-    self._github_service = github_service
-    self._github_owner_username = self._github_service.github_owner_username
-    self._issue_json_data = issue_json_data
-    self._assignee_data = assignee_data
+  issue_exporter = issues.IssueExporter(
+      issue_service, user_service, issue_data, project_name, user_map)
 
-    self._issue_service = None
-    self._user_service = None
-    self._previously_created_issues = set()
-    self._assignee_map = {}
-    self._project_name = project_name
-
-    self._issue_total = 0
-    self._issue_number = 0
-    self._comment_number = 0
-    self._comment_total = 0
-
-  def Init(self):
-    """Initialize the needed variables."""
-    self._issue_service = GitHubIssueService(self._github_service)
-    self._user_service = GitHubUserService(self._github_service)
-    self._GetAllPreviousIssues()
-    self._CreateAssigneeMap()
-
-  def _CreateAssigneeMap(self):
-    """Create a mapping from Google Code email address to GitHub usernames.
-
-    If there is an issue creating this mapping (An invalid file or invalid
-    username) the program will exit so the user can fix the issue.
-
-    Raises:
-      InvalidUserError: The user passed in a invalid GitHub username.
-      InvalidUserMappingError: The user passed in an invalid data object.
-    """
-    if self._assignee_data is None:
-      return
-
-    user_map_list = self._assignee_data.split("\n")
-    for line in filter(None, user_map_list):
-      if line.startswith('#'):
-        continue
-      user_map = line.split(":")
-      if len(user_map) is 2:
-        username = user_map[1].strip()
-        if not self._user_service.IsUser(username):
-          raise InvalidUserError("%s is not a GitHub User" % username)
-        self._assignee_map[user_map[0].strip()] = username
-      else:
-        raise InvalidUserMappingError("Failed to create mapping for %s" % line)
-
-  def _GetIssueAssignee(self, issue_json):
-    """Get a GitHub username from a Google Code issue.
-
-    Args:
-      issue_json: A Google Code issue in as an object.
-
-    Returns:
-      The GitHub username associated with the Google Code issue or the
-      repository owner if no mapping or email address in the Google Code
-      issue exists.
-    """
-    if "owner" in issue_json:
-      owner_name = issue_json["owner"]["name"]
-      if owner_name in self._assignee_map:
-        return self._assignee_map[owner_name]
-
-    return self._github_owner_username
-
-  def _GetAllPreviousIssues(self):
-    """Gets all previously uploaded issues.
-
-    Creates a hash of the issue titles, they will be unique as the Google Code
-    issue number is in each title.
-    """
-    print "Getting any previously added issues..."
-    open_issues = self._issue_service.GetIssues("open")
-    closed_issues = self._issue_service.GetIssues("closed")
-    issues = open_issues + closed_issues
-    for issue in issues:
-      self._previously_created_issues.add(issue["title"])
-
-  def UpdatedIssueFeed(self):
-    """Update issue count 'feed'.
-
-    This displays the current status of the script to the user.
-    """
-    feed_string = ("\rIssue: %d/%d -> Comment: %d/%d        " %
-                   (self._issue_number, self._issue_total,
-                    self._comment_number, self._comment_total))
-    sys.stdout.write(feed_string)
-    sys.stdout.flush()
-
-  def _CreateGitHubIssue(self, issue_json):
-    """Converts an issue from Google Code to GitHub.
-
-    This will take the Google Code issue and create a corresponding issue on
-    GitHub.  If the issue on Google Code was closed it will also be closed on
-    GitHub.
-
-    Args:
-      issue_json: A Google Code issue in as an object.
-
-    Returns:
-      The issue number assigned by GitHub or -1 if there was an error.
-    """
-    issue_title = issue_json["title"]
-    is_open = self._issue_service.IsIssueOpen(issue_json)
-    # Remove the state as it is no longer needed.
-    del issue_json["state"]
-    response, content = self._issue_service.CreateIssue(issue_json)
-
-    if not _CheckSuccessful(response):
-      # Newline character at the beginning of the line to allows for in-place
-      # updating of the counts of the issues and comments.
-      print "\nFailed to create issue: %s" % (issue_title)
-      return -1, False
-    issue_number = self._issue_service.GetIssueNumber(content)
-
-    return issue_number, is_open
-
-  def _CreateGitHubComments(self, comments, issue_number, issue_id):
-    """Converts a list of issue comment from Google Code to GitHub.
-
-    This will take a list of Google Code issue comments and create
-    corresponding comments on GitHub for the given issue number.
-
-    Args:
-      comments: A list of comments (each comment is just a string).
-      issue_number: The GitHub issue number.
-    """
-    self._comment_total = len(comments)
-    self._comment_number = 0
-
-    for comment in comments:
-      self._comment_number += 1
-      self.UpdatedIssueFeed()
-      response, _ = self._issue_service.CreateComment(issue_number,
-                                                      issue_id,
-                                                      comment["content"],
-                                                      comment["author"]["name"],
-                                                      comment["published"],
-                                                      comment["id"],
-                                                      self._project_name)
-
-      if not _CheckSuccessful(response):
-        print ("\nFailed to create issue comment (%s) for GitHub issue #%d"
-               % (comment["content"], issue_number))
-      time.sleep(COMMENT_DELAY)
-
-  def Start(self):
-    """The primary function that runs this script.
-
-    This will traverse the issues and attempt to create each issue and its
-    comments.
-
-    Raises:
-      InvalidUserError: The user passed in a invalid GitHub username.
-      InvalidUserMappingError: The user passed in an invalid data object.
-    """
-    self._issue_total = len(self._issue_json_data)
-    self._issue_number = 0
-    skipped_issues = 0
-    for issue in self._issue_json_data:
-
-      issue_title = issue["title"]
-
-      if issue_title in self._previously_created_issues:
-        skipped_issues += 1
-        continue
-
-      issue["assignee"] = self._GetIssueAssignee(issue)
-
-      # code.google.com always has one comment (item #0) which is the issue
-      # description.
-      first_item = issue["comments"]["items"].pop(0)
-
-      content = _FixUpComment(first_item["content"])
-      author = first_item["author"]["name"]
-      create_date = first_item["published"]
-      issue_id = issue["id"]
-      url = "https://code.google.com/p/%s/issues/detail?id=%s" % \
-          (self._project_name, issue_id)
-      body = "Original [issue %s](%s) created by %s on %s:\n\n%s" % \
-          (issue_id, url, author, create_date, content)
-      issue["body"] = body
-
-      self._issue_number += 1
-      self.UpdatedIssueFeed()
-
-      issue_number, is_open = self._CreateGitHubIssue(issue)
-      if issue_number < 0:
-        continue
-
-      if "items" in issue["comments"]:
-        self._CreateGitHubComments(issue["comments"]["items"], issue_number, issue_id)
-
-      if not is_open:
-        response, content = self._issue_service.CloseIssue(issue_number)
-        if not _CheckSuccessful(response):
-          print "\nFailed to close GitHub issue #%s" % (issue_number)
-
-    if skipped_issues > 0:
-      print ("\nSkipped %d/%d issue previously uploaded.  Most likely due to"
-             " the script being aborted or killed." %
-             (skipped_issues, self._issue_total))
+  try:
+    issue_exporter.Init()
+    issue_exporter.Start()
+    print "\nDone!\n"
+  except IOError, e:
+    print "[IOError] ERROR: %s" % e
+  except issues.InvalidUserError, e:
+    print "[InvalidUserError] ERROR: %s" % e
 
 
 def main(args):
@@ -665,51 +437,15 @@ def main(args):
   parser.add_argument("--project_name", required=True,
                       help="The name of the Google Code project you wish to"
                       "export")
-  parser.add_argument("--assignee_file_path", required=False,
+  parser.add_argument("--user_file_path", required=False,
                       help="The path to the file containing a mapping from"
                       "email address to github username.")
-  parsed_args, unused_unknown_args = parser.parse_known_args(args)
+  parsed_args, _ = parser.parse_known_args(args)
 
-  github_service = GitHubService(parsed_args.github_owner_username,
-                                 parsed_args.github_repo_name,
-                                 parsed_args.github_oauth_token)
-
-  assignee_data = None
-  issue_data = None
-  issue_exporter = None
-
-  user_file = open(parsed_args.issue_file_path)
-  user_data = json.load(user_file)
-  user_projects = user_data["projects"]
-
-  for project in user_projects:
-    if parsed_args.project_name in project["name"]:
-      issue_data = project["issues"]["items"]
-      break
-
-  if issue_data is None:
-    raise ProjectNotFoundError("Project %s not found" %
-                               parsed_args.project_name)
-
-  if parsed_args.assignee_file_path:
-    assignee_data = open(parsed_args.assignee_file_path)
-    issue_exporter = IssueExporter(github_service, issue_data,
-                                   parsed_args.project_name,
-                                   assignee_data.read())
-  else:
-    issue_exporter = IssueExporter(github_service, issue_data,
-                                   parsed_args.project_name)
-
-  try:
-    issue_exporter.Init()
-    issue_exporter.Start()
-    print "\nDone!\n"
-  except IOError, e:
-    print "[IOError] ERROR: %s" % e
-  except InvalidUserError, e:
-    print "[InvalidUserError] ERROR: %s" % e
-  except InvalidUserMappingError, e:
-    print "[InvalidUserMappingError] ERROR: %s" % e
+  ExportIssues(
+      parsed_args.github_owner_username, parsed_args.github_repo_name,
+      parsed_args.github_oauth_token, parsed_args.issue_file_path,
+      parsed_args.project_name, parsed_args.user_file_path)
 
 
 if __name__ == "__main__":
