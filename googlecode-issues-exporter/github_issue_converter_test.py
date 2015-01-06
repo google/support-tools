@@ -14,25 +14,40 @@
 
 """Tests for the GitHub Services."""
 
+# pylint: disable=missing-docstring,protected-access
+
 import collections
 import httplib
 import json
-import issue_migration
 import unittest
-from urlparse import urlparse
+import urlparse
+
+import github_issue_converter
+import issues
+
+from issues_test import DEFAULT_USERNAME
+from issues_test import SINGLE_COMMENT
+from issues_test import SINGLE_ISSUE
+from issues_test import COMMENT_ONE
+from issues_test import COMMENT_TWO
+from issues_test import COMMENT_THREE
+from issues_test import COMMENTS_DATA
+from issues_test import NO_ISSUE_DATA
+from issues_test import USER_MAP
+from issues_test import REPO
 
 
 # The GitHub username.
-GITHUB_USERNAME = "username"
+GITHUB_USERNAME = DEFAULT_USERNAME
 # The GitHub repo name.
-GITHUB_REPO = "repo"
+GITHUB_REPO = REPO
 # The GitHub oauth token.
 GITHUB_TOKEN = "oauth_token"
 # The URL used for calls to GitHub.
 GITHUB_API_URL = "https://api.github.com"
 
 
-class FakeGitHubService(issue_migration.GitHubService):
+class FakeGitHubService(github_issue_converter.GitHubService):
   """A fake of the GitHubService.
 
   This also allows for queueing of responses and there content into a reponse
@@ -50,6 +65,7 @@ class FakeGitHubService(issue_migration.GitHubService):
       github_oauth_token: The oauth token to use for the requests.
   """
 
+  # pylint: disable=super-init-not-called
   def __init__(self, github_owner_username, github_repo_name,
                github_oauth_token):
     """Initialize the FakeGitHubService.
@@ -65,9 +81,9 @@ class FakeGitHubService(issue_migration.GitHubService):
     self._github_oauth_token = github_oauth_token
     self._action_queue = collections.deque([])
 
-  def AddSuccessfulResponse(self):
+  def AddSuccessfulResponse(self, content=None):
     """Adds a succesfull response with no content to the reponse queue."""
-    self.AddResponse()
+    self.AddResponse(content=content)
 
   def AddFailureResponse(self):
     """Adds a failed response with no content to the reponse queue."""
@@ -80,7 +96,7 @@ class FakeGitHubService(issue_migration.GitHubService):
     full_response["content"] = content if content else {}
     self._action_queue.append(full_response)
 
-  def _PerformHttpRequest(self):
+  def _PerformHttpRequest(self, method, url, body="{}", params=None):
     if not self._action_queue:
       return {"status": httplib.OK}, {}
 
@@ -97,7 +113,7 @@ class FakeGitHubService(issue_migration.GitHubService):
     Returns:
       A tuple of a fake response and fake content.
     """
-    return self._PerformHttpRequest()
+    return self._PerformHttpRequest("GET", url, params=params)
 
   def PerformPostRequest(self, url, body):
     """Makes a POST request.
@@ -109,7 +125,7 @@ class FakeGitHubService(issue_migration.GitHubService):
     Returns:
       A tuple of a fake response and content
     """
-    return self._PerformHttpRequest()
+    return self._PerformHttpRequest("POST", url, body=body)
 
   def PerformPatchRequest(self, url, body):
     """Makes a PATCH request.
@@ -121,7 +137,7 @@ class FakeGitHubService(issue_migration.GitHubService):
     Returns:
       A tuple of a fake response and content
     """
-    return self._PerformHttpRequest()
+    return self._PerformHttpRequest("PATCH", url, body=body)
 
 
 class Http2Mock(object):
@@ -150,7 +166,7 @@ class Http2Mock(object):
     self.last_method = None
     self.last_body = None
 
-  def request(self, url, method, body=None):  # pylint: disable=g-bad-name
+  def request(self, url, method, body=None):
     """Makes a fake HTTP request.
 
     Args:
@@ -172,17 +188,17 @@ class TestGitHubService(unittest.TestCase):
 
   def setUp(self):
     self.http_mock = Http2Mock()
-    self.github_service = issue_migration.GitHubService(
+    self.github_service = github_issue_converter.GitHubService(
         GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN,
         http_instance=self.http_mock)
 
   def testSuccessfulRequestSuccess(self):
-    success = issue_migration._CheckSuccessful(
+    success = github_issue_converter._CheckSuccessful(
         self.http_mock.response_success)
     self.assertTrue(success)
 
   def testSuccessfulRequestFailure(self):
-    failure = issue_migration._CheckSuccessful(
+    failure = github_issue_converter._CheckSuccessful(
         self.http_mock.response_failure)
     self.assertFalse(failure)
 
@@ -230,12 +246,14 @@ class TestGitHubService(unittest.TestCase):
 
     uri = ("%s/test?access_token=%s&one=1&two=2" %
            (GITHUB_API_URL, GITHUB_TOKEN))
+    # pylint: disable=unpacking-non-sequence
     (expected_scheme, expected_domain, expected_path, expected_params,
-     expected_query, expected_fragment) = urlparse(uri)
+     expected_query, expected_fragment) = urlparse.urlparse(uri)
     expected_query_list = expected_query.split("&")
 
+    # pylint: disable=unpacking-non-sequence
     (actual_scheme, actual_domain, actual_path, actual_params, actual_query,
-     actual_fragment) = urlparse(self.http_mock.last_url)
+     actual_fragment) = urlparse.urlparse(self.http_mock.last_url)
     actual_query_list = actual_query.split("&")
 
     self.assertEqual(expected_scheme, actual_scheme)
@@ -258,14 +276,14 @@ class TestGitHubService(unittest.TestCase):
     self.assertEqual(self.http_mock.last_method, "PATCH")
 
 
-class TestGitHubUserService(unittest.TestCase):
-  """Tests for the GitHubUserService."""
+class TestUserService(unittest.TestCase):
+  """Tests for the UserService."""
 
   def setUp(self):
     self.github_service = FakeGitHubService(GITHUB_USERNAME,
                                             GITHUB_REPO,
                                             GITHUB_TOKEN)
-    self.github_user_service = issue_migration.GitHubUserService(
+    self.github_user_service = github_issue_converter.UserService(
         self.github_service)
 
   def testIsUserTrue(self):
@@ -278,25 +296,33 @@ class TestGitHubUserService(unittest.TestCase):
     self.assertFalse(is_user)
 
 
-class TestGitHubIssueService(unittest.TestCase):
-  """Tests for the GitHubIssueService."""
+class TestIssueService(unittest.TestCase):
+  """Tests for the IssueService."""
 
   def setUp(self):
     self.http_mock = Http2Mock()
-    self.github_service = issue_migration.GitHubService(
+    self.github_service = github_issue_converter.GitHubService(
         GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN,
         http_instance=self.http_mock)
-    self.github_issue_service = issue_migration.GitHubIssueService(
-        self.github_service)
+    self.github_issue_service = github_issue_converter.IssueService(
+        self.github_service, comment_delay=0)
 
   def testCreateIssue(self):
-    issue_body = {"body": "issue"}
-    self.github_issue_service.CreateIssue(issue_body)
+    issue_body = {
+        "body": ("Original [issue 1](https://code.google.com/p/repo/issues" +
+                 "/detail?id=1) created by a_uthor on last year:\n\none"),
+        "assignee": "a_uthor",
+        "labels": ["awesome", "great"],
+        "title": "issue_title",
+    }
+    self.http_mock.content = {"number": 1}
+    issue_number = self.github_issue_service.CreateIssue(SINGLE_ISSUE)
     self.assertEqual(self.http_mock.last_method, "POST")
     uri = ("%s/repos/%s/%s/issues?access_token=%s" %
            (GITHUB_API_URL, GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN))
     self.assertEqual(self.http_mock.last_url, uri)
     self.assertEqual(self.http_mock.last_body, json.dumps(issue_body))
+    self.assertEqual(1, issue_number)
 
   def testCloseIssue(self):
     self.github_issue_service.CloseIssue(123)
@@ -308,90 +334,49 @@ class TestGitHubIssueService(unittest.TestCase):
                      json.dumps({"state": "closed"}))
 
   def testCreateComment(self):
-    comment_body = "stuff"
-    self.github_issue_service.CreateComment(123, comment_body)
+    comment_body = (
+        "Comment [#1](https://code.google.com/p/repo/issues/detail" +
+        "?id=1#c1) originally posted by a_uthor on last year:\n\none")
+    self.github_issue_service.CreateComment(
+        1, "1", SINGLE_COMMENT, GITHUB_REPO)
     self.assertEqual(self.http_mock.last_method, "POST")
     uri = ("%s/repos/%s/%s/issues/%d/comments?access_token=%s" %
-           (GITHUB_API_URL, GITHUB_USERNAME, GITHUB_REPO, 123, GITHUB_TOKEN))
+           (GITHUB_API_URL, GITHUB_USERNAME, GITHUB_REPO, 1, GITHUB_TOKEN))
     self.assertEqual(self.http_mock.last_url, uri)
     self.assertEqual(self.http_mock.last_body,
                      json.dumps({"body": comment_body}))
 
   def testGetIssueNumber(self):
     issue = {"number": 1347}
-    issue_number = self.github_issue_service.GetIssueNumber(issue)
+    issue_number = self.github_issue_service._GetIssueNumber(issue)
     self.assertEqual(1347, issue_number)
-
-  def testIsIssueOpenOpen(self):
-    issue = {"state": "open"}
-    issue_open = self.github_issue_service.IsIssueOpen(issue)
-    self.assertTrue(issue_open)
-
-  def testIsIssueOpenClosed(self):
-    issue = {"state": "closed"}
-    issue_open = self.github_issue_service.IsIssueOpen(issue)
-    self.assertFalse(issue_open)
 
   def testGetIssues(self):
     fake_github_service = FakeGitHubService(GITHUB_USERNAME,
                                             GITHUB_REPO,
                                             GITHUB_TOKEN)
-    github_issue_service = issue_migration.GitHubIssueService(
-        fake_github_service)
+    github_issue_service = github_issue_converter.IssueService(
+        fake_github_service, comment_delay=0)
     fake_github_service.AddFailureResponse()
     with self.assertRaises(IOError):
       github_issue_service.GetIssues()
 
 
 class TestIssueExporter(unittest.TestCase):
-  """Tests for the GitHubIssueService."""
+  """Tests for the IssueService."""
 
   def setUp(self):
-    assignee_map = "user@email.com:userone\nuser2@gmail.com:usertwo"
     self.github_service = FakeGitHubService(GITHUB_USERNAME,
                                             GITHUB_REPO,
                                             GITHUB_TOKEN)
-    self.issue_exporter = issue_migration.IssueExporter(self.github_service,
-                                                        {},  # Issue data
-                                                        assignee_map)
+    self.github_user_service = github_issue_converter.UserService(
+        self.github_service)
+    self.github_issue_service = github_issue_converter.IssueService(
+        self.github_service, comment_delay=0)
+    self.issue_exporter = issues.IssueExporter(
+        self.github_issue_service, self.github_user_service,
+        NO_ISSUE_DATA, GITHUB_REPO, USER_MAP)
     self.issue_exporter.Init()
-
-  def testCreateAssigneeMap(self):
-    self.assertEqual(2, len(self.issue_exporter._assignee_map))
-
-  def testCreateAssigneeMapNoData(self):
-    self.issue_exporter = issue_migration.IssueExporter(self.github_service,
-                                                        {})
-    self.issue_exporter.Init()
-    self.assertEqual(0, len(self.issue_exporter._assignee_map))
-
-  def testCreateAssigneeMapNotUser(self):
-    self.github_service.AddFailureResponse()
-    with self.assertRaises(issue_migration.InvalidUserError):
-      self.issue_exporter._CreateAssigneeMap()
-
-  def testCreateAssigneeMapBadMap(self):
-    self.issue_exporter._assignee_data = "user@email.com:userone:fail"
-    with self.assertRaises(issue_migration.InvalidUserMappingError):
-      self.issue_exporter._CreateAssigneeMap()
-
-  def testGetIssueAssignee(self):
-    issue = {"owner": {"kind": "projecthosting#issuePerson",
-                       "name": "user@email.com"
-                      }}
-    email = self.issue_exporter._GetIssueAssignee(issue)
-    self.assertEqual("userone", email)
-
-  def testGetIssueAssigneeNoAssignee(self):
-    email = self.issue_exporter._GetIssueAssignee({})
-    self.assertEqual(GITHUB_USERNAME, email)
-
-  def testGetIssueAssigneeOwner(self):
-    issue = {"owner": {"kind": "projecthosting#issuePerson",
-                       "name": "notauser@email.com"
-                      }}
-    email = self.issue_exporter._GetIssueAssignee(issue)
-    self.assertEqual(GITHUB_USERNAME, email)
 
   def testGetAllPreviousIssues(self):
     self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
@@ -402,54 +387,35 @@ class TestIssueExporter(unittest.TestCase):
     self.assertTrue("issue_title" in
                     self.issue_exporter._previously_created_issues)
 
-  def testCreateGitHubIssue(self):
+  def testCreateIssue(self):
     content = {"number": 1234}
     self.github_service.AddResponse(content=content)
 
-    issue = {"state": "open", "title": "issue_title"}
-    issue_number = self.issue_exporter._CreateGitHubIssue(issue)
+    issue_number = self.issue_exporter._CreateIssue(SINGLE_ISSUE)
     self.assertEqual(1234, issue_number)
 
-  def testCreateGitHubIssueClosedIssue(self):
-    content = {"number": 1234}
-    self.github_service.AddResponse(content=content)
-
-    issue = {"state": "closed", "title": "issue_title"}
-    issue_number = self.issue_exporter._CreateGitHubIssue(issue)
-    self.assertEqual(1234, issue_number)
-
-  def testCreateGitHubIssueFailedOpenRequest(self):
+  def testCreateIssueFailedOpenRequest(self):
     self.github_service.AddFailureResponse()
-    issue = {"state": "open", "title": "issue_title"}
-    issue_number = self.issue_exporter._CreateGitHubIssue(issue)
-    self.assertEqual(-1, issue_number)
+    with self.assertRaises(issues.ServiceError):
+      self.issue_exporter._CreateIssue(SINGLE_ISSUE)
 
-  def testCreateGitHubIssueFailedCloseRequest(self):
+  def testCreateIssueFailedCloseRequest(self):
     content = {"number": 1234}
     self.github_service.AddResponse(content=content)
     self.github_service.AddFailureResponse()
-    issue = {"state": "closed", "title": "issue_title"}
-    issue_number = self.issue_exporter._CreateGitHubIssue(issue)
+    issue_number = self.issue_exporter._CreateIssue(SINGLE_ISSUE)
     self.assertEqual(1234, issue_number)
 
-  def testCreateGitHubComments(self):
+  def testCreateComments(self):
     self.assertEqual(0, self.issue_exporter._comment_number)
-    comments = [{"content": "one"},
-                {"content": "two"},
-                {"content": "three"},
-                {"content": "four"}]
-    self.issue_exporter._CreateGitHubComments(comments, 1234)
+    self.issue_exporter._CreateComments(COMMENTS_DATA, 1234, SINGLE_ISSUE)
     self.assertEqual(4, self.issue_exporter._comment_number)
 
-  def testCreateGitHubCommentsFailure(self):
+  def testCreateCommentsFailure(self):
     self.github_service.AddFailureResponse()
     self.assertEqual(0, self.issue_exporter._comment_number)
-    comments = [{"content": "one"},
-                {"content": "two"},
-                {"content": "three"},
-                {"content": "four"}]
-    self.issue_exporter._CreateGitHubComments(comments, 1234)
-    self.assertEqual(4, self.issue_exporter._comment_number)
+    with self.assertRaises(issues.ServiceError):
+      self.issue_exporter._CreateComments(COMMENTS_DATA, 1234, SINGLE_ISSUE)
 
   def testStart(self):
     self.issue_exporter._issue_json_data = [
@@ -457,12 +423,13 @@ class TestIssueExporter(unittest.TestCase):
             "id": "1",
             "title": "Title1",
             "state": "open",
-            "items": [{"content": "one"},
-                      {"content": "two"},
-                      {"content": "three"}],
+            "comments": {
+                "items": [COMMENT_ONE, COMMENT_TWO, COMMENT_THREE],
+            },
+            "labels": ["Type-Issue", "Priority-High"],
             "owner": {"kind": "projecthosting#issuePerson",
                       "name": "User1"
-                     }
+                     },
         },
         {
             "id": "2",
@@ -470,32 +437,41 @@ class TestIssueExporter(unittest.TestCase):
             "state": "closed",
             "owner": {"kind": "projecthosting#issuePerson",
                       "name": "User2"
-                     }
+                     },
+            "labels": [],
+            "comments": {
+                "items": [COMMENT_ONE],
+            },
         },
         {
             "id": "3",
             "title": "Title3",
             "state": "closed",
-            "items": [{"content": "one"}],
+            "comments": {
+                "items": [COMMENT_ONE, COMMENT_TWO],
+            },
+            "labels": ["Type-Defect"],
             "owner": {"kind": "projecthosting#issuePerson",
                       "name": "User3"
                      }
         }]
 
     self.github_service.AddResponse(content={"number": 1234})
-    self.github_service.AddSuccessfulResponse()
-    self.github_service.AddSuccessfulResponse()
-    self.github_service.AddSuccessfulResponse()
-    self.github_service.AddResponse(content={"number": 4321})
-    self.github_service.AddSuccessfulResponse()
-    self.github_service.AddResponse(content={"number": 2314})
+    self.github_service.AddResponse(content={"number": 2345})
+    self.github_service.AddResponse(content={"number": 3456})
+    self.github_service.AddResponse(content={"number": 5678})
+    self.github_service.AddResponse(content={"number": 6789})
+    self.github_service.AddResponse(content={"number": 7890})
+    self.github_service.AddResponse(content={"number": 8901})
+    self.github_service.AddResponse(content={"number": 9012})
 
     self.issue_exporter.Start()
 
     self.assertEqual(3, self.issue_exporter._issue_total)
     self.assertEqual(3, self.issue_exporter._issue_number)
     # Comment counts are per issue and should match the numbers from the last
-    # issue created.
+    # issue created, minus one for the first comment, which is really
+    # the issue description.
     self.assertEqual(1, self.issue_exporter._comment_number)
     self.assertEqual(1, self.issue_exporter._comment_total)
 
@@ -507,4 +483,4 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(0, self.issue_exporter._issue_number)
 
 if __name__ == "__main__":
-  unittest.main()
+  unittest.main(buffer=True)
