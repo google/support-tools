@@ -19,23 +19,30 @@ import argparse
 import json
 import sys
 
-from bitbucket_issue_converter import GoogleCodeComment
-from bitbucket_issue_converter import GoogleCodeIssue
-from bitbucket_issue_converter import ProjectNotFoundError
+import issues
 
 
-def _CreateUsersDict(issue_data):
+class KeyDict(dict):
+  """Dictionary that returns the key for missing items. """
+
+  def __missing__(self, key):
+    """Implements the dict interface. """
+    return key
+
+
+def _CreateUsersDict(issue_data, project_name):
   """Extract users from list of issues into a dict.
 
   Args:
     issue_data: Issue data
+    project_name: The name of the project being exported.
 
   Returns:
     Dict of users associated with a list of issues
   """
   users = {}
   for issue in issue_data:
-    googlecode_issue = GoogleCodeIssue(issue)
+    googlecode_issue = issues.GoogleCodeIssue(issue, project_name, KeyDict())
 
     # Add reporting user, if they aren't already
     reporting_user = googlecode_issue.GetAuthor()
@@ -49,7 +56,7 @@ def _CreateUsersDict(issue_data):
 
     googlecode_comments = googlecode_issue.GetComments()
     for comment in googlecode_comments:
-      googlecode_comment = GoogleCodeComment(comment, googlecode_issue.GetId())
+      googlecode_comment = issues.GoogleCodeComment(googlecode_issue, comment)
       commenting_user = googlecode_comment.GetAuthor()
       if commenting_user not in users:
         users[commenting_user] = commenting_user
@@ -59,6 +66,32 @@ def _CreateUsersDict(issue_data):
   }
 
 
+def Generate(issue_file_path, project_name):
+  """Generates a user map for hte specified issues. """
+  issue_data = None
+
+  user_file = open(issue_file_path)
+  user_data = json.load(user_file)
+  user_projects = user_data["projects"]
+
+  for project in user_projects:
+    if project_name in project["name"]:
+      issue_data = project["issues"]["items"]
+      break
+
+  if issue_data is None:
+    raise issues.ProjectNotFoundError(
+        "Project %s not found" % project_name)
+
+  users = _CreateUsersDict(issue_data, project_name)
+
+  with open("users.json", "w") as users_file:
+    user_json = json.dumps(users, sort_keys=True, indent=4,
+                           separators=(",", ": "), ensure_ascii=False)
+    users_file.write(unicode(user_json))
+    print "\nCreated file users.json\n"
+
+
 def main(args):
   """The main function.
 
@@ -66,7 +99,7 @@ def main(args):
     args: The command line arguments.
 
   Raises:
-    ProjectNotFoundError: The user passed in an invalid project name.
+    issues.ProjectNotFoundError: The user passed in an invalid project name.
   """
   parser = argparse.ArgumentParser()
   parser.add_argument("--issue_file_path", required=True,
@@ -75,30 +108,10 @@ def main(args):
   parser.add_argument("--project_name", required=True,
                       help="The name of the Google Code project you wish to"
                       "export")
-  parsed_args, unused_unknown_args = parser.parse_known_args(args)
+  parsed_args, _ = parser.parse_known_args(args)
 
-  issue_data = None
+  Generate(parsed_args.issue_file_path, parsed_args.project_name)
 
-  user_file = open(parsed_args.issue_file_path)
-  user_data = json.load(user_file)
-  user_projects = user_data["projects"]
-
-  for project in user_projects:
-    if parsed_args.project_name in project["name"]:
-      issue_data = project["items"]
-      break
-
-  if issue_data is None:
-    raise ProjectNotFoundError(
-        "Project %s not found" % parsed_args.project_name)
-
-  users = _CreateUsersDict(issue_data)
-
-  with open("users.json", "w") as users_file:
-    user_json = json.dumps(users, sort_keys=True, indent=4,
-                           separators=(",", ": "), ensure_ascii=False)
-    users_file.write(unicode(user_json))
-    print "\nCreated file users.json\n"
 
 if __name__ == "__main__":
   main(sys.argv)
