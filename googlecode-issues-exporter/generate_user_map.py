@@ -22,12 +22,18 @@ import sys
 import issues
 
 
-class KeyDict(dict):
+class OptionalMap(dict):
   """Dictionary that returns the key for missing items. """
 
   def __missing__(self, key):
     """Implements the dict interface. """
     return key
+
+
+def addIfNotPresent(users, user):
+  """Adds a user if it is not already set."""
+  if user not in users:
+    users[user] = user
 
 
 def _CreateUsersDict(issue_data, project_name):
@@ -42,24 +48,20 @@ def _CreateUsersDict(issue_data, project_name):
   """
   users = {}
   for issue in issue_data:
-    googlecode_issue = issues.GoogleCodeIssue(issue, project_name, KeyDict())
+    googlecode_issue = issues.GoogleCodeIssue(
+        issue, project_name, OptionalMap())
 
-    # Add reporting user, if they aren't already
     reporting_user = googlecode_issue.GetAuthor()
-    if reporting_user not in users:
-      users[reporting_user] = reporting_user
+    addIfNotPresent(users, reporting_user)
 
     assignee_user = googlecode_issue.GetOwner()
-    # Add assignee user, if they aren't already
-    if assignee_user not in users:
-      users[assignee_user] = assignee_user
+    addIfNotPresent(users, assignee_user)
 
     googlecode_comments = googlecode_issue.GetComments()
     for comment in googlecode_comments:
       googlecode_comment = issues.GoogleCodeComment(googlecode_issue, comment)
       commenting_user = googlecode_comment.GetAuthor()
-      if commenting_user not in users:
-        users[commenting_user] = commenting_user
+      addIfNotPresent(users, commenting_user)
 
   return {
       "users": users
@@ -67,7 +69,7 @@ def _CreateUsersDict(issue_data, project_name):
 
 
 def Generate(issue_file_path, project_name):
-  """Generates a user map for hte specified issues. """
+  """Generates a user map for the specified issues. """
   issue_data = None
 
   user_file = open(issue_file_path)
@@ -89,7 +91,7 @@ def Generate(issue_file_path, project_name):
     user_json = json.dumps(users, sort_keys=True, indent=4,
                            separators=(",", ": "), ensure_ascii=False)
     users_file.write(unicode(user_json))
-    print "\nCreated file users.json\n"
+    print "\nCreated file users.json.\n"
 
 
 def main(args):
