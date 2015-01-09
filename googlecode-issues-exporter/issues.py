@@ -431,8 +431,9 @@ def LoadUserData(user_file_path, default_username, user_service):
     default_username: Username to use when no entry is found for a user.
     user_service: an instance of UserService
   """
+  result = collections.defaultdict(lambda: default_username)
   if not user_file_path:
-    return None
+    return result
 
   with open(user_file_path) as user_data:
     user_json = user_data.read()
@@ -442,7 +443,6 @@ def LoadUserData(user_file_path, default_username, user_service):
     if not user_service.IsUser(username):
       raise InvalidUserError("%s is not a User" % username)
 
-  result = collections.defaultdict(lambda: default_username)
   result.update(user_map)
   return result
 
