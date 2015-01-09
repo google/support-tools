@@ -187,7 +187,7 @@ def main(args):
   ExportIssues(
     parsed_args.issue_file_path, parsed_args.project_name,
     parsed_args.user_file_path, parsed_args.default_issue_kind,
-    parsed_args.default_username)
+    parsed_args.default_owner_username)
 
 
 if __name__ == "__main__":
