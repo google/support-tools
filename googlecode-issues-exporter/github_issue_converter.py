@@ -296,7 +296,7 @@ class IssueService(issues.IssueService):
       response, content = self._github_service.PerformGetRequest(
           self._github_issues_url, params=params)
       if not _CheckSuccessful(response):
-        raise IOError("Failed to retrieve previous issues.")
+        raise IOError("Failed to retrieve previous issues.\n%s" % content)
       if not content:
         return github_issues
       else:
@@ -328,7 +328,8 @@ class IssueService(issues.IssueService):
     if not _CheckSuccessful(response):
       # Newline character at the beginning of the line to allows for in-place
       # updating of the counts of the issues and comments.
-      raise issues.ServiceError("\nFailed to create issue: %s" % (issue_title))
+      raise issues.ServiceError("\nFailed to create issue: %s.\n%s" % (
+          issue_title, content))
 
     return self._GetIssueNumber(content)
 
@@ -343,10 +344,11 @@ class IssueService(issues.IssueService):
     """
     issue_url = "%s/%d" % (self._github_issues_url, issue_number)
     json_state = json.dumps({"state": "closed"})
-    response, _ = self._github_service.PerformPatchRequest(
+    response, content = self._github_service.PerformPatchRequest(
         issue_url, json_state)
     if not _CheckSuccessful(response):
-      raise issues.ServiceError("\nFailed to close issue #%s" % (issue_number))
+      raise issues.ServiceError("\nFailed to close issue #%s.\n%s" % (
+          issue_number, content))
 
   def CreateComment(self, issue_number, source_issue_id,
                     googlecode_comment, project_name):
@@ -365,13 +367,13 @@ class IssueService(issues.IssueService):
     comment = googlecode_comment.GetDescription()
 
     json_body = json.dumps({"body": comment})
-    response, _ = self._github_service.PerformPostRequest(
+    response, content = self._github_service.PerformPostRequest(
         comment_url, json_body)
 
     if not _CheckSuccessful(response):
       raise issues.ServiceError(
-          "\nFailed to create issue comment (%s) for issue #%d" %
-          (googlecode_comment.GetContent(), issue_number))
+          "\nFailed to create issue comment (%s) for issue #%d\n%s" %
+          (googlecode_comment.GetContent(), issue_number, content))
     time.sleep(self._comment_delay)
 
   def _GetIssueNumber(self, content):
