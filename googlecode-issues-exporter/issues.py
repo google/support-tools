@@ -549,6 +549,10 @@ class IssueExporter(object):
     This will traverse the issues and attempt to create each issue and its
     comments.
     """
+    if len(self._previously_created_issues):
+      print ("Existing issues detected for the repo. Likely due to"
+             " the script being previously aborted or killed.")
+
     self._issue_total = len(self._issue_json_data)
     self._issue_number = 0
     skipped_issues = 0
@@ -557,12 +561,12 @@ class IssueExporter(object):
           issue, self._project_name, self._user_map)
       issue_title = googlecode_issue.GetTitle()
 
+      self._issue_number += 1
+      self._UpdateProgressBar()
+
       if issue_title in self._previously_created_issues:
         skipped_issues += 1
         continue
-
-      self._issue_number += 1
-      self._UpdateProgressBar()
 
       issue_number = self._CreateIssue(googlecode_issue)
       if issue_number < 0:
@@ -575,6 +579,5 @@ class IssueExporter(object):
         self._issue_service.CloseIssue(issue_number)
 
     if skipped_issues > 0:
-      print ("\nSkipped %d/%d issue previously uploaded.  Most likely due to"
-             " the script being aborted or killed." %
+      print ("\nSkipped %d/%d issue previously uploaded." %
              (skipped_issues, self._issue_total))
