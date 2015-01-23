@@ -123,7 +123,7 @@ class GoogleCodeIssue(object):
     Returns:
       A list of the labels of this issue.
     """
-    return self._issue["labels"]
+    return self._issue.get("labels", [])
 
   def GetKind(self):
     """Get the kind from a Google Code issue.
