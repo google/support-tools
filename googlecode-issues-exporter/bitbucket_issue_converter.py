@@ -60,6 +60,12 @@ def _getStatus(status):
   return mapping.get(status.lower(), "new")
 
 
+def _getTitle(title):
+  if len(title) < 255:
+    return title
+  return title[:250] + "[...]"
+
+
 class UserService(issues.UserService):
   """BitBucket user operations.
   """
@@ -116,7 +122,7 @@ class IssueService(issues.IssueService):
         "priority": _getPriority(googlecode_issue.GetPriority()),
         "reporter": googlecode_issue.GetAuthor(),
         "status": _getStatus(googlecode_issue.GetStatus()),
-        "title": googlecode_issue.GetTitle(),
+        "title": _getTitle(googlecode_issue.GetTitle()),
         "updated_on": googlecode_issue.GetUpdatedOn()
     }
     self._bitbucket_issues.append(bitbucket_issue)
@@ -161,8 +167,8 @@ class IssueService(issues.IssueService):
     }
     with open("db-1.0.json", "w") as issues_file:
       issues_json = json.dumps(issues_data, sort_keys=True, indent=4,
-                               separators=(",", ": "), ensure_ascii=False)
-      issues_file.write(unicode(issues_json))
+                               separators=(",", ": "))
+      issues_file.write(issues_json)
 
 
 def ExportIssues(issue_file_path, project_name,
