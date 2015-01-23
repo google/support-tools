@@ -28,6 +28,38 @@ import sys
 import issues
 
 
+def _getKind(kind):
+  mapping = {
+    "defect": "bug",
+    "enhancement": "enhancement",
+    "task": "task",
+    "review": "proposal",
+    "other": "bug",
+  }
+  return mapping.get(kind.lower(), "bug")
+
+
+def _getPriority(priority):
+  mapping = {
+    "low": "trivial",
+    "medium": "minor",
+    "high": "major",
+    "critical": "critical",
+  }
+  return mapping.get(priority.lower(), "minor")
+
+
+def _getStatus(status):
+  mapping = {
+      "new": "new",
+      "fixed": "resolved",
+      "invalid": "invalid",
+      "duplicate": "duplicate",
+      "wontfix": "wontfix",
+  }
+  return mapping.get(status.lower(), "new")
+
+
 class UserService(issues.UserService):
   """BitBucket user operations.
   """
@@ -80,10 +112,10 @@ class IssueService(issues.IssueService):
         "content_updated_on": googlecode_issue.GetContentUpdatedOn(),
         "created_on": googlecode_issue.GetCreatedOn(),
         "id": googlecode_issue.GetId(),
-        "kind": googlecode_issue.GetKind(),
-        "priority": googlecode_issue.GetPriority(),
+        "kind": _getKind(googlecode_issue.GetKind()),
+        "priority": _getPriority(googlecode_issue.GetPriority()),
         "reporter": googlecode_issue.GetAuthor(),
-        "status": googlecode_issue.GetStatus(),
+        "status": _getStatus(googlecode_issue.GetStatus()),
         "title": googlecode_issue.GetTitle(),
         "updated_on": googlecode_issue.GetUpdatedOn()
     }

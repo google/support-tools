@@ -68,10 +68,10 @@ class TestIssueService(unittest.TestCase):
         "content_updated_on": "last month",
         "created_on": "last year",
         "id": 1,
-        "kind": "Defect",
-        "priority": "Medium",
+        "kind": "bug",
+        "priority": "minor",
         "reporter": None,
-        "status": "fixed",
+        "status": "resolved",
         "title": "issue_title",
         "updated_on": "last year",
     }
