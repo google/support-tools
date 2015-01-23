@@ -162,6 +162,13 @@ class GitHubService(object):
       A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
       its content from the server which is decoded JSON.
     """
+    # Add a delay to all outgoing request to GitHub, as to not trigger their
+    # anti-abuse mechanism. This is separate from your typical rate limit, and
+    # only applies to certain API calls (like creating issues). And, alas, the
+    # exact quota is undocumented. So the value below is simply a guess. See:
+    # https://developer.github.com/v3/#abuse-rate-limits
+    req_min = 30
+    time.sleep(60 / req_min)
     return self._PerformHttpRequest("POST", url, body)
 
   def PerformPatchRequest(self, url, body):
