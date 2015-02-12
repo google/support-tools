@@ -217,10 +217,15 @@ def main(args):
   parser.add_argument("--default_issue_kind", required=False,
                       help="A non-null string containing one of the following"
                       "values: bug, enhancement, proposal, task. Defaults to"
-                      "bug.")
+                      "bug")
   parser.add_argument("--default_owner_username", required=True,
-                      help="The default issue username")
+                      help="The default issue owner's username")
   parsed_args, _ = parser.parse_known_args(args)
+
+  # Default value.
+  if not parsed_args.default_issue_kind:
+    print "Using default issue kind of 'bug'."
+    parsed_args.default_issue_kind = "bug"
 
   ExportIssues(
     parsed_args.issue_file_path, parsed_args.project_name,
