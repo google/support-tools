@@ -211,10 +211,10 @@ def main(args):
   parser.add_argument("--project_name", required=True,
                       help="The name of the Google Code project you wish to"
                       "export")
-  parser.add_argument("--user_file_path", required=True,
+  parser.add_argument("--user_file_path", required=False,
                       help="The path to the file containing a mapping from"
                       "email address to bitbucket username")
-  parser.add_argument("--default_issue_kind", required=True,
+  parser.add_argument("--default_issue_kind", required=False,
                       help="A non-null string containing one of the following"
                       "values: bug, enhancement, proposal, task. Defaults to"
                       "bug.")
