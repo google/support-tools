@@ -14,7 +14,7 @@ python wiki2gfm.py \
 Note that this is used by {{wiki2gfm\_test.py}}, so changing the
 arguments will break unit tests.
 
-(TODO: Add table of contents.)
+
 
 #### Tables (mistmatched header sides)
 

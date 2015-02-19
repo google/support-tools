@@ -1134,19 +1134,14 @@ class Converter(object):
       match: Matched text.
       output_stream: Output Markdown file.
     """
-    output = "(TODO: Add table of contents.)"
     self._warning_method(
         input_line,
         "A table of contents plugin was used for this wiki:\n"
         "\t{0}\n"
         "The Gollum wiki system supports table of content generation.\n"
         "See https://github.com/gollum/gollum/wiki for more information.\n"
-        "It has been replaced with:\n\t{1}"
-        .format(match, output))
-    self._formatting_handler.HandleEscapedText(
-        input_line,
-        output_stream,
-        output)
+        "It has been removed."
+        .format(match))
 
   def _HandlePluginEnd(self, input_line, match, output_stream):
     """Handle a plugin ending tag.
