@@ -738,15 +738,12 @@ class FormattingHandler(object):
         output_stream: Output Markdown file.
         unused_params: The parameters for the tag.
     """
-    output = "(TODO: Link to Google+ page.)"
     self._warning_method(
         input_line,
         "A Google+ +1 button was embedded on this page, but GitHub does not "
         "currently support this. Should it become supported in the future, "
         "see https://developers.google.com/+/web/+1button/ for more "
-        "information.\nIt has been replaced with:\n\t{0}"
-        .format(output))
-    self._Write(output, output_stream)
+        "information.\nIt has been removed.")
 
   def HandleGPlusClose(self, unused_input_line, unused_output_stream):
     """Handle the output for closing a +1 button.

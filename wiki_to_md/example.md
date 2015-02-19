@@ -245,7 +245,7 @@ rev111612.<br>
 This text will be removed from the rendered page.
 '></a>
 
-(TODO: Link to Google+ page.)
+
 
 <a href='http://www.youtube.com/watch?feature=player_embedded&v=FiARsQSlzDc' target='_blank'><img src='http://img.youtube.com/vi/FiARsQSlzDc/0.jpg' width='425' height=344 /></a>
 
@@ -254,7 +254,7 @@ This text will be removed from the rendered page.
 This text will be removed from the rendered page.
 '></a><br>
 <br>
-(TODO: Link to Google+ page.)<br>
+<br>
 <br>
 <a href='http://www.youtube.com/watch?feature=player_embedded&v=FiARsQSlzDc' target='_blank'><img src='http://img.youtube.com/vi/FiARsQSlzDc/0.jpg' width='425' height=344 /></a><br>
 </span>
