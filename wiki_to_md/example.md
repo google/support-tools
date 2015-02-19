@@ -1,5 +1,19 @@
 # Header1
 
+This is a test file for verifying the tool's output. You can regenerate
+` example.md ` yourself by running:
+
+```
+python wiki2gfm.py \
+    --project=test \
+    --wikipages_list="TestPage" \
+    --input_file=example.wiki \
+    --output_file=example.md
+```
+
+Note that this is used by {{wiki2gfm\_test.py}}, so changing the
+arguments will break unit tests.
+
 (TODO: Add table of contents.)
 
 #### Tables (mistmatched header sides)
