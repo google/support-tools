@@ -50,6 +50,9 @@ class BaseTest(unittest.TestCase):
     """
     self.assertEquals(expected_output, self.output.getvalue())
 
+  def assertNoOutput(self, expected_output):
+    self.assertNotEqual(expected_output, self.output.getvalue())
+
   def assertWarning(self, warning_contents, occurrences=1):
     """Assert that a warning was issued containing the given contents.
 
@@ -707,7 +710,7 @@ class TestFormattingHandler(BaseTest):
     self.formatting_handler.HandleGPlusOpen(1, self.output, None)
     self.formatting_handler.HandleGPlusClose(1, self.output)
 
-    self.assertOutput("(TODO: Link to Google+ page.)")
+    self.assertNoOutput("(TODO: Link to Google+ page.)")
     self.assertWarning("A Google+ +1 button was embedded on this page")
 
   def testHandleGPlusInHtml(self):
@@ -715,7 +718,7 @@ class TestFormattingHandler(BaseTest):
     self.formatting_handler.HandleGPlusOpen(1, self.output, None)
     self.formatting_handler.HandleGPlusClose(1, self.output)
 
-    self.assertOutput("(TODO: Link to Google+ page.)")
+    self.assertNoOutput("(TODO: Link to Google+ page.)")
     self.assertWarning("A Google+ +1 button was embedded on this page")
 
   def testHandleComment(self):
