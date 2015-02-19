@@ -502,14 +502,14 @@ class TestFormattingHandler(BaseTest):
   def testHandleWiki(self):
     self.formatting_handler.HandleWiki(1, self.output, "TestPage", "Test Page")
 
-    self.assertOutput("[Test Page](wiki/TestPage)")
+    self.assertOutput("[Test Page](TestPage.md)")
     self.assertNoWarnings()
 
   def testHandleWikiInHtml(self):
     self.formatting_handler._in_html = 1
     self.formatting_handler.HandleWiki(1, self.output, "TestPage", "Test Page")
 
-    self.assertOutput("<a href='wiki/TestPage'>Test Page</a>")
+    self.assertOutput("<a href='TestPage.md'>Test Page</a>")
     self.assertWarning("Link markup was used")
 
   def testHandleIssue(self):

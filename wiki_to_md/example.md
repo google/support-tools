@@ -179,9 +179,9 @@ The following is:<br>
 
 ==== Links
 
-A LittleLink[?](wiki/TestPage)
+A LittleLink[?](TestPage.md)
 
-[TestPage](wiki/TestPage) is linked automatically.
+[TestPage](TestPage.md) is linked automatically.
 
 http://www.google.com/
 
@@ -198,9 +198,9 @@ http://www.google.com/
 **IN HTML**
 
 <span>
-A LittleLink<a href='wiki/TestPage'>?</a>
+A LittleLink<a href='TestPage.md'>?</a>
 
-<a href='wiki/TestPage'>TestPage</a> is linked automatically.<br>
+<a href='TestPage.md'>TestPage</a> is linked automatically.<br>
 <br>
 <a href='http://www.google.com/'>http://www.google.com/</a>
 

@@ -577,7 +577,8 @@ class FormattingHandler(object):
     """
     # A wiki link is just like a regular link, except under the wiki directory.
     # At this point we make the text equal to the original target if unset.
-    self.HandleLink(input_line, output_stream, "wiki/" + target, text or target)
+    # We do however append ".md", assuming the wiki files now have that extension.
+    self.HandleLink(input_line, output_stream, target + ".md", text or target)
 
   def HandleIssue(self, input_line, output_stream, prefix, issue):
     """Handle the output for an auto-linked issue.
