@@ -289,3 +289,10 @@ This text will be removed from the rendered page.
 == All done!==
 
 Hope you enjoyed.
+
+= Regressions =
+
+We were adding extra spaces around tick marks:
+
+alpha `beta` gamma
+

@@ -391,7 +391,7 @@ class FormattingHandler(object):
           consecutive_ticks = 0
 
       surrounding_ticks = "`" * (max_consecutive_ticks + 1)
-      self._Write("{0} {1} {0}".format(surrounding_ticks, code), output_stream)
+      self._Write("{0}{1}{0}".format(surrounding_ticks, code), output_stream)
 
   def HandleTableCellBorder(self, input_line, output_stream):
     """Handle the output for a table cell border.

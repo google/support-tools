@@ -1,7 +1,7 @@
 # Header1
 
 This is a test file for verifying the tool's output. You can regenerate
-` example.md ` yourself by running:
+`example.md` yourself by running:
 
 ```
 python wiki2gfm.py \
@@ -26,22 +26,22 @@ Tables:
 
 |**Name/Sample**   | **Markup**       |
 |:-----------------|:-----------------|
-|  _italic_        | ` _italic_ `       |
-|  **bold**         | ` *bold* `         |
-|  ` code `         | `` `code` ``     |
-|  ` code `        | ` {{{code}}} `     |
-|  <sup>super</sup>script  | ` ^super^script `  |
-|  <sub>sub</sub>script  | ` ,,sub,,script `  |
-| ~~strikeout~~    | ` ~~strikeout~~ `  |
+|  _italic_        | `_italic_`       |
+|  **bold**         | `*bold*`         |
+|  `code`          | ```code```       |
+|  `code`          | `{{{code}}}`     |
+|  <sup>super</sup>script  | `^super^script`  |
+|  <sub>sub</sub>script  | `,,sub,,script`  |
+| ~~strikeout~~    | `~~strikeout~~`  |
 
 You can mix these typefaces in some ways:
 
 |       **Markup**                    |        **Result**                 |
 |:------------------------------------|:----------------------------------|
-| ` _*bold* in italics_ `             | _**bold** in italics_             |
-| ` *_italics_ in bold* `             | **_italics_ in bold**             |
-| ` *~~strike~~ works too* `          | **~~strike~~ works too**          |
-| ` ~~as well as _this_ way round~~ ` | ~~as well as _this_ way round~~   |
+| `_*bold* in italics_`               | _**bold** in italics_             |
+| `*_italics_ in bold*`               | **_italics_ in bold**             |
+| `*~~strike~~ works too*`            | **~~strike~~ works too**          |
+| `~~as well as _this_ way round~~`   | ~~as well as _this_ way round~~   |
 
 **IN HTML**
 
@@ -287,3 +287,9 @@ this is a var!<br>
 ## All done!
 
 Hope you enjoyed.
+
+# Regressions
+
+We were adding extra spaces around tick marks:
+
+alpha `beta` gamma
