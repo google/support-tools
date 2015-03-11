@@ -914,6 +914,10 @@ class FormattingHandler(object):
         input_line: Current line number being processed.
         output_stream: Output Markdown file.
     """
+    # Fix index error if list_tags is empty.
+    if len(self._list_tags) == 0:
+      self._warning_method(input_line, "HtmlListClose without list_tags?")
+      self._list_tags = [ { "indent": 0, "kind": "Bulleted list" } ]
     top_tag = self._list_tags[-1]
     kind = top_tag["kind"]
     self._list_tags.pop()
