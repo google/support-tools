@@ -126,13 +126,15 @@ class GitHubService(object):
       A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
       its content from the server which is decoded JSON.
     """
+    headers = { "User-Agent": "GoogleCodeIssueExporter/1.0" }
     query = params.copy() if params else {}
     query["access_token"] = self._github_oauth_token
     request_url = "%s%s?%s" % (GITHUB_API_URL, url, urllib.urlencode(query))
     requests = 0
     while requests < MAX_HTTP_REQUESTS:
       requests += 1
-      response, content = self._http.request(request_url, method, body)
+      response, content = self._http.request(request_url, method,
+                                             headers=headers, body=body)
       if _CheckSuccessful(response):
         return response, json.loads(content)
       elif self._RequestLimitReached():
@@ -164,7 +166,7 @@ class GitHubService(object):
       A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
       its content from the server which is decoded JSON.
     """
-    if self._rate_limit:
+    if self._rate_limit and self._rate_limit in ["True", "true"]:
       # Add a delay to all outgoing request to GitHub, as to not trigger their
       # anti-abuse mechanism. This is separate from your typical rate limit, and
       # only applies to certain API calls (like creating issues). And, alas, the
@@ -452,7 +454,7 @@ def main(args):
   parser.add_argument("--user_file_path", required=False,
                       help="The path to the file containing a mapping from"
                       "email address to github username.")
-  parser.add_argument("--rate_limit", required=False, default=True,
+  parser.add_argument("--rate_limit", required=False, default="True",
                      help="Rate limit GitHub requests to not run into"
                      "anti-abuse limits.")
   parsed_args, _ = parser.parse_known_args(args)
