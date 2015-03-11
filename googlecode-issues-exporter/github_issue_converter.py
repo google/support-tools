@@ -89,10 +89,11 @@ class GitHubService(object):
   Attributes:
       github_owner_username: The username of the owner of the repository.
       github_repo_name: The GitHub repository name.
+      rate_limit: Whether or not to rate limit API calls.
   """
 
   def __init__(self, github_owner_username, github_repo_name,
-               github_oauth_token, http_instance=None):
+               github_oauth_token, rate_limit, http_instance=None):
     """Initialize the GitHubService.
 
     Args:
@@ -105,6 +106,7 @@ class GitHubService(object):
     self.github_owner_username = github_owner_username
     self.github_repo_name = github_repo_name
     self._github_oauth_token = github_oauth_token
+    self._rate_limit = rate_limit
     self._http = http_instance if http_instance else httplib2.Http()
 
   def _PerformHttpRequest(self, method, url, body="{}", params=None):
@@ -162,13 +164,14 @@ class GitHubService(object):
       A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
       its content from the server which is decoded JSON.
     """
-    # Add a delay to all outgoing request to GitHub, as to not trigger their
-    # anti-abuse mechanism. This is separate from your typical rate limit, and
-    # only applies to certain API calls (like creating issues). And, alas, the
-    # exact quota is undocumented. So the value below is simply a guess. See:
-    # https://developer.github.com/v3/#abuse-rate-limits
-    req_min = 30
-    time.sleep(60 / req_min)
+    if self._rate_limit:
+      # Add a delay to all outgoing request to GitHub, as to not trigger their
+      # anti-abuse mechanism. This is separate from your typical rate limit, and
+      # only applies to certain API calls (like creating issues). And, alas, the
+      # exact quota is undocumented. So the value below is simply a guess. See:
+      # https://developer.github.com/v3/#abuse-rate-limits
+      req_min = 25
+      time.sleep(60 / req_min)
     return self._PerformHttpRequest("POST", url, body)
 
   def PerformPatchRequest(self, url, body):
@@ -267,7 +270,6 @@ class IssueService(issues.IssueService):
 
   def __init__(self, github_service, comment_delay=COMMENT_DELAY):
     """Initialize the IssueService.
-
 
     Args:
       github_service: The GitHub service.
@@ -397,11 +399,12 @@ class IssueService(issues.IssueService):
 
 
 def ExportIssues(github_owner_username, github_repo_name, github_oauth_token,
-                 issue_file_path, project_name, user_file_path):
+                 issue_file_path, project_name, user_file_path, rate_limit):
   """Exports all issues for a given project.
   """
   github_service = GitHubService(
-      github_owner_username, github_repo_name, github_oauth_token)
+      github_owner_username, github_repo_name, github_oauth_token,
+      rate_limit)
   issue_service = IssueService(github_service)
   user_service = UserService(github_service)
 
@@ -449,12 +452,16 @@ def main(args):
   parser.add_argument("--user_file_path", required=False,
                       help="The path to the file containing a mapping from"
                       "email address to github username.")
+  parser.add_argument("--rate_limit", required=False, default=True,
+                     help="Rate limit GitHub requests to not run into"
+                     "anti-abuse limits.")
   parsed_args, _ = parser.parse_known_args(args)
 
   ExportIssues(
       parsed_args.github_owner_username, parsed_args.github_repo_name,
       parsed_args.github_oauth_token, parsed_args.issue_file_path,
-      parsed_args.project_name, parsed_args.user_file_path)
+      parsed_args.project_name, parsed_args.user_file_path,
+      parsed_args.rate_limit)
 
 
 if __name__ == "__main__":
