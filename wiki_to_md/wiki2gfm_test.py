@@ -393,7 +393,7 @@ class TestFormattingHandler(BaseTest):
   def testHandleInlineCode(self):
     self.formatting_handler.HandleInlineCode(1, self.output, "xyz")
 
-    self.assertOutput("` xyz `")
+    self.assertOutput("`xyz`")
     self.assertNoWarnings()
 
   def testHandleInlineCodeInHtml(self):

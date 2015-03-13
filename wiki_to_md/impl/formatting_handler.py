@@ -115,7 +115,7 @@ class FormattingHandler(object):
         header_level: The header level.
     """
     if self._in_html:
-      tag = "h{0}".format(header_level)
+      tag = u"h{0}".format(header_level)
       self.HandleHtmlOpen(input_line, output_stream, tag, {}, False)
     else:
       self._Write("#" * header_level + " ", output_stream)
@@ -133,7 +133,7 @@ class FormattingHandler(object):
         header_level: The header level.
     """
     if self._in_html:
-      tag = "h{0}".format(header_level)
+      tag = u"h{0}".format(header_level)
       self.HandleHtmlClose(input_line, output_stream, tag)
     else:
       if self._symmetric_headers:
@@ -167,7 +167,7 @@ class FormattingHandler(object):
     else:
       if not specified_language:
         specified_language = ""
-      self._Write("```{0}\n".format(specified_language), output_stream)
+      self._Write(u"```{0}\n".format(specified_language), output_stream)
     self._in_code_block = True
 
   def HandleCodeBlockClose(self, input_line, output_stream):
@@ -349,7 +349,7 @@ class FormattingHandler(object):
         text: The text to output.
     """
     # Markdown currently has no dedicated markup for superscript.
-    self._Write("<sup>{0}</sup>".format(text), output_stream)
+    self._Write(u"<sup>{0}</sup>".format(text), output_stream)
 
   def HandleSubscript(self, unused_input_line, output_stream, text):
     """Handle the output for subscript text.
@@ -360,7 +360,7 @@ class FormattingHandler(object):
         text: The text to output.
     """
     # Markdown currently has no dedicated markup for subscript.
-    self._Write("<sub>{0}</sub>".format(text), output_stream)
+    self._Write(u"<sub>{0}</sub>".format(text), output_stream)
 
   def HandleInlineCode(self, input_line, output_stream, code):
     """Handle the output for a code block.
@@ -391,7 +391,7 @@ class FormattingHandler(object):
           consecutive_ticks = 0
 
       surrounding_ticks = "`" * (max_consecutive_ticks + 1)
-      self._Write("{0}{1}{0}".format(surrounding_ticks, code), output_stream)
+      self._Write(u"{0}{1}{0}".format(surrounding_ticks, code), output_stream)
 
   def HandleTableCellBorder(self, input_line, output_stream):
     """Handle the output for a table cell border.
@@ -476,7 +476,7 @@ class FormattingHandler(object):
       self.HandleTableCellBorder(input_line, output_stream)
 
       # Wiki tables are left-aligned, which takes one character to specify.
-      self._Write(":{0}".format("-" * (column_width - 1)), output_stream)
+      self._Write(u":{0}".format("-" * (column_width - 1)), output_stream)
 
     self.HandleTableCellBorder(input_line, output_stream)
 
@@ -553,7 +553,7 @@ class FormattingHandler(object):
         # make the link description an inlined image. We do this by setting
         # the output description to the syntax used to inline an image.
         if is_image_description:
-          description = "![]({0})".format(description)
+          description = u"![]({0})".format(description)
         elif description:
           description = self._Escape(description)
         else:
@@ -563,7 +563,7 @@ class FormattingHandler(object):
         # Prefix ! if linking to an image without a text description.
         prefix = "!" if is_image and is_image_description else ""
 
-        output = "{0}[{1}]({2})".format(prefix, description, target)
+        output = u"{0}[{1}]({2})".format(prefix, description, target)
         self._Write(output, output_stream)
 
   def HandleWiki(self, input_line, output_stream, target, text):
@@ -599,7 +599,7 @@ class FormattingHandler(object):
           input_line,
           output_stream,
           migrated_issue_url,
-          "{0}{1}".format(prefix, migrated_issue))
+          u"{0}{1}".format(prefix, migrated_issue))
       handled = True
 
       instructions = ("In the output, it has been linked to the migrated issue "
@@ -626,7 +626,7 @@ class FormattingHandler(object):
           input_line,
           output_stream,
           old_link,
-          "{0}{1}".format(prefix, issue))
+          u"{0}{1}".format(prefix, issue))
       handled = True
 
       instructions += ("As a placeholder, the text has been modified to "
@@ -639,7 +639,7 @@ class FormattingHandler(object):
 
     # Couldn't map it to GitHub nor could we link to the old issue.
     if not handled:
-      output = "{0}{1} (on Google Code)".format(prefix, issue)
+      output = u"{0}{1} (on Google Code)".format(prefix, issue)
       self._Write(output, output_stream)
       handled = True
 
@@ -649,7 +649,7 @@ class FormattingHandler(object):
 
     self._warning_method(
         input_line,
-        "Issue {0} was auto-linked. {1}".format(issue, instructions))
+        u"Issue {0} was auto-linked. {1}".format(issue, instructions))
 
   def HandleRevision(self, input_line, output_stream, prefix, revision):
     """Handle the output for an auto-linked issue.
@@ -669,13 +669,13 @@ class FormattingHandler(object):
           input_line,
           output_stream,
           old_link,
-          "{0}{1}".format(prefix, revision))
+          u"{0}{1}".format(prefix, revision))
 
       instructions = ("As a placeholder, the text has been modified to "
                       "link to the original Google Code source page:\n\t{0}"
                       .format(old_link))
     else:
-      output = "{0}{1} (on Google Code)".format(prefix, revision)
+      output = u"{0}{1} (on Google Code)".format(prefix, revision)
       self._Write(output, output_stream)
 
       instructions = ("Additionally, because no project name was specified "
@@ -707,12 +707,12 @@ class FormattingHandler(object):
         has_end: True if the tag was self-closed.
     """
     core_params = self._SerializeHtmlParams(params)
-    core = "{0}{1}".format(html_tag, core_params)
+    core = u"{0}{1}".format(html_tag, core_params)
 
     if has_end:
-      output = "<{0} />".format(core)
+      output = u"<{0} />".format(core)
     else:
-      output = "<{0}>".format(core)
+      output = u"<{0}>".format(core)
       self._in_html += 1
 
     self._Write(output, output_stream)
@@ -727,7 +727,7 @@ class FormattingHandler(object):
         output_stream: Output Markdown file.
         html_tag: The HTML tag name.
     """
-    self._Write("</{0}>".format(html_tag), output_stream)
+    self._Write(u"</{0}>".format(html_tag), output_stream)
     self._in_html -= 1
     self._has_written_text = False
 
@@ -844,7 +844,7 @@ class FormattingHandler(object):
         input_line,
         "{0} markup was used within HTML tags. Because GitHub does not "
         "support this, the tags have been translated to HTML. Please verify "
-        "that the formatting is correct.".format(kind))
+        u"that the formatting is correct.".format(kind))
 
   def _HandleHtmlListOpen(
       self,
@@ -957,10 +957,10 @@ class FormattingHandler(object):
         self.HandleHtmlClose(input_line, output_stream, tag)
       else:
         tag = self._HTML_FORMAT_TAGS[kind]["Markdown"]
-        self._Write("{0}{1}{0}".format(tag, format_buffer), output_stream)
+        self._Write(u"{0}{1}{0}".format(tag, format_buffer), output_stream)
 
     else:
-      self._warning_method(input_line, "Re-closed '{0}', ignoring.".format(tag))
+      self._warning_method(input_line, u"Re-closed '{0}', ignoring.".format(tag))
 
   def _Indent(self, output_stream, indentation_level):
     """Output indentation.
@@ -989,7 +989,7 @@ class FormattingHandler(object):
         before_match = text[:match.start()]
         after_match = text[match.end():]
         escaped_match = match.group(0).replace("<", "&lt;").replace(">", "&gt;")
-        text = "{0}{1}{2}".format(before_match, escaped_match, after_match)
+        text = u"{0}{1}{2}".format(before_match, escaped_match, after_match)
 
     # In Markdown, if a newline is preceeded by two spaces it breaks the line.
     # For Wiki text, this is not the case, so we strip such endings off.
@@ -1012,7 +1012,7 @@ class FormattingHandler(object):
         quote = "'"
       else:
         quote = "\""
-      core_params += " {0}={1}{2}{1}".format(name, quote, value)
+      core_params += u" {0}={1}{2}{1}".format(name, quote, value)
 
     return core_params
 
