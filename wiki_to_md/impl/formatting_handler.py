@@ -30,7 +30,7 @@ class FormattingHandler(object):
 
   # Template for linking to a video.
   _VIDEO_TEMPLATE = (
-      "<a href='http://www.youtube.com/watch?feature=player_embedded&v={0}' "
+      u"<a href='http://www.youtube.com/watch?feature=player_embedded&v={0}' "
       "target='_blank'><img src='http://img.youtube.com/vi/{0}/0.jpg' "
       "width='{1}' height={2} /></a>")
 
@@ -602,7 +602,7 @@ class FormattingHandler(object):
           u"{0}{1}".format(prefix, migrated_issue))
       handled = True
 
-      instructions = ("In the output, it has been linked to the migrated issue "
+      instructions = (u"In the output, it has been linked to the migrated issue "
                       "on GitHub: {0}. Please verify this issue on GitHub "
                       "corresponds to the original issue on Google Code. "
                       .format(migrated_issue))
@@ -620,7 +620,7 @@ class FormattingHandler(object):
 
     # If we couldn't handle it in the map, try linking to the old issue.
     if not handled and self._project:
-      old_link = ("https://code.google.com/p/{0}/issues/detail?id={1}"
+      old_link = (u"https://code.google.com/p/{0}/issues/detail?id={1}"
                   .format(self._project, issue))
       self.HandleLink(
           input_line,
@@ -629,7 +629,7 @@ class FormattingHandler(object):
           u"{0}{1}".format(prefix, issue))
       handled = True
 
-      instructions += ("As a placeholder, the text has been modified to "
+      instructions += (u"As a placeholder, the text has been modified to "
                        "link to the original Google Code issue page:\n\t{0}"
                        .format(old_link))
     elif not handled:
@@ -643,7 +643,7 @@ class FormattingHandler(object):
       self._Write(output, output_stream)
       handled = True
 
-      instructions += ("The auto-link has been removed and the text has been "
+      instructions += (u"The auto-link has been removed and the text has been "
                        "modified from '{0}{1}' to '{2}'."
                        .format(prefix, issue, output))
 
@@ -663,7 +663,7 @@ class FormattingHandler(object):
     # Google Code only auto-linked revision numbers, not hashes, so
     # revision auto-linking cannot be done for the conversion.
     if self._project:
-      old_link = ("https://code.google.com/p/{0}/source/detail?r={1}"
+      old_link = (u"https://code.google.com/p/{0}/source/detail?r={1}"
                   .format(self._project, revision))
       self.HandleLink(
           input_line,
@@ -671,14 +671,14 @@ class FormattingHandler(object):
           old_link,
           u"{0}{1}".format(prefix, revision))
 
-      instructions = ("As a placeholder, the text has been modified to "
+      instructions = (u"As a placeholder, the text has been modified to "
                       "link to the original Google Code source page:\n\t{0}"
                       .format(old_link))
     else:
       output = u"{0}{1} (on Google Code)".format(prefix, revision)
       self._Write(output, output_stream)
 
-      instructions = ("Additionally, because no project name was specified "
+      instructions = (u"Additionally, because no project name was specified "
                       "the revision could not be linked to the original "
                       "Google Code source page. The auto-link has been removed "
                       "and the text has been modified from '{0}{1}' to '{2}'."
@@ -686,7 +686,7 @@ class FormattingHandler(object):
 
     self._warning_method(
         input_line,
-        "Revision {0} was auto-linked. SVN revision numbers are not sensible "
+        u"Revision {0} was auto-linked. SVN revision numbers are not sensible "
         "in Git; consider updating this link or removing it altogether. {1}"
         .format(revision, instructions))
 
@@ -842,9 +842,9 @@ class FormattingHandler(object):
     """
     self._warning_method(
         input_line,
-        "{0} markup was used within HTML tags. Because GitHub does not "
+        u"{0} markup was used within HTML tags. Because GitHub does not "
         "support this, the tags have been translated to HTML. Please verify "
-        u"that the formatting is correct.".format(kind))
+        "that the formatting is correct.".format(kind))
 
   def _HandleHtmlListOpen(
       self,

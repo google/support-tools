@@ -44,14 +44,14 @@ class PragmaHandler(object):
     if pragma_type == "summary":
       self._warning_method(
           input_line,
-          "A summary pragma was used for this wiki:\n"
+          u"A summary pragma was used for this wiki:\n"
           "\t{0}\n"
           "Consider moving it to an introductory paragraph."
           .format(pragma_value))
     elif pragma_type == "sidebar":
       self._warning_method(
           input_line,
-          "A sidebar pragma was used for this wiki:\n"
+          u"A sidebar pragma was used for this wiki:\n"
           "\t{0}\n"
           "The Gollum wiki system supports sidebars, and by converting "
           "{0}.wiki to _Sidebar.md it can be used as a sidebar.\n"
@@ -60,7 +60,7 @@ class PragmaHandler(object):
     else:
       self._warning_method(
           input_line,
-          "The following pragma has been ignored:\n"
+          u"The following pragma has been ignored:\n"
           "\t#{0} {1}\n"
           "Consider expressing the same information in a different manner."
           .format(pragma_type, pragma_value))

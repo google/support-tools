@@ -45,7 +45,7 @@ def PrintWarning(input_line, message):
     input_line: The line number this warning occurred on.
     message: The warning message.
   """
-  print "Warning (line {0} of input file):\n{1}\n".format(input_line, message)
+  print u"Warning (line {0} of input file):\n{1}\n".format(input_line, message)
 
 
 def main(args):
