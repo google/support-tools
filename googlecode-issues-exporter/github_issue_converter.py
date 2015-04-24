@@ -327,6 +327,10 @@ class IssueService(issues.IssueService):
       issues.ServiceError: An error occurred creating the issue.
     """
     issue_title = googlecode_issue.GetTitle()
+    # It is not possible to create a Google Code issue without a title, but you
+    # can edit an issue to remove its title afterwards.
+    if issue_title.isspace():
+      issue_title = "<empty title>"
     issue = {
         "title": issue_title,
         "body": googlecode_issue.GetDescription(),
@@ -339,8 +343,8 @@ class IssueService(issues.IssueService):
     if not _CheckSuccessful(response):
       # Newline character at the beginning of the line to allows for in-place
       # updating of the counts of the issues and comments.
-      raise issues.ServiceError("\nFailed to create issue: %s.\n%s" % (
-          issue_title, content))
+      raise issues.ServiceError("\nFailed to create issue %d: %s.\n%s" % (
+          googlecode_issue.GetId(), issue_title, content))
 
     return self._GetIssueNumber(content)
 
