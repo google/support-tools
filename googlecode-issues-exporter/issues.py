@@ -253,7 +253,37 @@ class GoogleCodeComment(object):
     Returns:
       The issue comment
     """
-    return self._comment["content"]
+    body = self._comment["content"]
+
+    # Add references to attachments as appropriate.
+    attachmentLines = []
+    for attachment in self._comment["attachments"] if "attachments" in self._comment else []:
+      if "isDeleted" in attachment:
+        line = " * *Attachment: %s (deleted)*" % (attachment["fileName"])
+        attachmentLines.append(line)
+        continue
+
+      link = "https://storage.googleapis.com/google-code-attachments/%s/issue-%d/comment-%d/%s" % (
+          self.GetIssue().GetProjectName(), self.GetIssue().GetId(),
+          self.GetId(), attachment["fileName"])
+
+      def has_extension(extension):
+        return attachment["fileName"].lower().endswith(extension)
+
+      is_image_attachment = False
+      for extension in [".png", ".jpg", ".jpeg", ".bmp", ".tif", ".gif"]:
+        is_image_attachment |= has_extension(".png")
+
+      if is_image_attachment:
+        line = " * *Attachment: %s<br>![%s](%s)*" % (
+            attachment["fileName"], attachment["fileName"], link)
+      else:
+        line = " * *Attachment: [%s](%s)*" % (attachment["fileName"], link)
+      attachmentLines.append(line)
+
+    if len(attachmentLines) > 0:
+      body += "\n<hr>\n" + "\n".join(attachmentLines)
+    return body
 
   def GetCreatedOn(self):
     """Get the creation date from a Google Code comment.
