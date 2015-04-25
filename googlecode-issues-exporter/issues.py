@@ -521,13 +521,16 @@ class IssueExporter(object):
     closed_issues = self._issue_service.GetIssues("closed")
     issues = open_issues + closed_issues
     for issue in issues:
-      print "%s" % issue
-      issue["id"] not in self._previously_created_issues or die(
+      # Yes, GitHub's issues API has both ID and Number, and they are
+      # the opposite of what you think they are.
+      issue["number"] not in self._previously_created_issues or die(
           "GitHub returned multiple issues with the same ID?")
-      self._previously_created_issues[issue["id"]] = {
+      self._previously_created_issues[issue["number"]] = {
           "title": issue["title"],
           "comment_count": issue["comments"],
         }
+      print "Added previous GitHub issue %s '%s' (%s comments)" % (
+          issue["id"], issue["title"], issue["comments"])
 
   def _UpdateProgressBar(self):
     """Update issue count 'feed'.
@@ -584,6 +587,8 @@ class IssueExporter(object):
     This will traverse the issues and attempt to create each issue and its
     comments.
     """
+    print "Starting issue export for '%s'" % (self._project_name)
+
     # If there are existing issues, then confirm they exactly match the Google
     # Code issues. Otherwise issue IDs will not match and/or there may be
     # missing data.
@@ -634,7 +639,7 @@ class IssueExporter(object):
       return
 
     print ("Existing issues detected for the repo. Likely due to a previous\n"
-           "run being aborted or killed. Checking consistency...")
+           "    run being aborted or killed. Checking consistency...")
 
     # Get the last exported issue, and its dual on Google Code.
     last_gh_issue_id = -1
@@ -642,9 +647,6 @@ class IssueExporter(object):
       if id > last_gh_issue_id:
         last_gh_issue_id = id
         last_gh_issue = self._previously_created_issues[last_gh_issue_id]
-
-    print "last_gh_issue %s %s" % (last_gh_issue_id, last_gh_issue)
-    print "issue_jason__daata %s" % self._issue_json_data
 
     last_gc_issue = None
     for issue in self._issue_json_data:
@@ -658,7 +660,7 @@ class IssueExporter(object):
     if last_gc_issue is None:
       raise RuntimeError(
           "Unable to find Google Code issue #%s '%s'.\n"
-          "Were issues added to GitHub since last export attempt?" % (
+          "    Were issues added to GitHub since last export attempt?" % (
               last_gh_issue_id, last_gh_issue["title"]))
 
     print "Last issue (#%s) matches. Checking comments..." % (last_gh_issue_id)
@@ -674,6 +676,6 @@ class IssueExporter(object):
         self._issue_service.CreateComment(
             int(last_gc_issue.GetId()), int(last_gc_issue.GetId()),
             googlecode_comment, self._project_name)
-        print "  Added comment #%s." % (idx)
+        print "  Added comment #%s." % (idx + 1)
 
     print "Done! Issue tracker now in expected state. Ready for more exports."
