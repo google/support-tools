@@ -99,6 +99,13 @@ class GoogleCodeIssueTest(unittest.TestCase):
         issue_json, REPO, USER_MAP)
     self.assertEqual(DEFAULT_USERNAME, issue.GetOwner())
 
+  def testTryFormatDate(self):
+    self.assertEqual("last year", issues.TryFormatDate("last year"))
+    self.assertEqual("2007-02-03 05:58:17",
+                     issues.TryFormatDate("2007-02-03T05:58:17.000Z:"))
+    self.assertEqual("2014-01-05 04:43:15",
+                     issues.TryFormatDate("2014-01-05T04:43:15.000Z"))
+
 
 if __name__ == "__main__":
   unittest.main(buffer=True)

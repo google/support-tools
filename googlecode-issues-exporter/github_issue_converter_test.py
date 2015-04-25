@@ -337,8 +337,8 @@ class TestIssueService(unittest.TestCase):
 
   def testCreateComment(self):
     comment_body = (
-        "Comment [#1](https://code.google.com/p/repo/issues/detail" +
-        "?id=1#c1) originally posted by a_uthor on last year:\n\none")
+        "```\none\n```\n\nOriginal issue reported on code.google.com "
+        "by `a_uthor` on last year")
     self.github_issue_service.CreateComment(
         1, "1", SINGLE_COMMENT, GITHUB_REPO)
     self.assertEqual(self.http_mock.last_method, "POST")
@@ -383,6 +383,7 @@ class TestIssueExporter(unittest.TestCase):
     self.TEST_ISSUE_DATA = [
         {
             "id": "1",
+            "number": "1",
             "title": "Title1",
             "state": "open",
             "comments": {
@@ -395,6 +396,7 @@ class TestIssueExporter(unittest.TestCase):
         },
         {
             "id": "2",
+            "number": "2",
             "title": "Title2",
             "state": "closed",
             "owner": {"kind": "projecthosting#issuePerson",
@@ -407,6 +409,7 @@ class TestIssueExporter(unittest.TestCase):
         },
         {
             "id": "3",
+            "number": "3",
             "title": "Title3",
             "state": "closed",
             "comments": {
@@ -421,7 +424,7 @@ class TestIssueExporter(unittest.TestCase):
 
   def testGetAllPreviousIssues(self):
     self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
-    content = [{"id": 1, "title": "issue_title", "comments": 2}]
+    content = [{"number": 1, "title": "issue_title", "comments": 2}]
     self.github_service.AddResponse(content=content)
     self.issue_exporter._GetAllPreviousIssues()
     self.assertEqual(1, len(self.issue_exporter._previously_created_issues))

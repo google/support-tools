@@ -16,10 +16,22 @@
 """
 
 import collections
+import datetime
 import json
 import re
 import sys
 
+
+def TryFormatDate(date):
+  """Attempt to clean up a timestamp date."""
+  try:
+    if date.endswith(":"):
+      date = date[:len(date) - 1]
+    datetime_version = datetime.datetime.strptime(
+        date, "%Y-%m-%dT%H:%M:%S.%fZ")
+    return str(datetime_version)
+  except ValueError as ve:
+    return date
 
 class Error(Exception):
   """Base error class."""
@@ -335,23 +347,31 @@ class GoogleCodeComment(object):
 
     The description has been modified to include origin details.
     """
-    source_issue_id = self.GetIssue().GetId()
-    project_name = self.GetIssue().GetProjectName()
     author = self.GetAuthor()
     comment_date = self.GetCreatedOn()
-    comment_id = self.GetId()
     comment_text = self.GetContent()
+
     if not comment_text:
       comment_text = '&lt;empty&gt;'
     else:
       comment_text = FixUpComment(comment_text)
 
-    orig_comment_url = (
-        "https://code.google.com/p/%s/issues/detail?id=%s#c%s" %
-        (project_name, source_issue_id, comment_id))
-    body = "Comment [#%s](%s) originally posted by %s on %s:\n\n%s" % (
-        comment_id, orig_comment_url, author, comment_date, comment_text)
-    return body
+    # Remove <b> tags, which Codesite automatically includes if issue body is
+    # based on a prompt.
+    comment_text = comment_text.replace("<b>", "")
+    comment_text = comment_text.replace("</b>", "")
+
+    # TODO(chrsmith): Confirm FixUpComment replaces <b>s and such.
+    # TODO(chrsmith): Unescample HTML.
+    # TODO(chrsmith): Wrap lines at 80 chars.
+    body = "```\n" + comment_text + "\n```"
+
+    # TODO(chris): Include other details, such as label adjustments.
+    footer = "\n\nOriginal issue reported on code.google.com by `%s` on %s" % (
+        author, TryFormatDate(comment_date))
+
+
+    return body + footer
 
 
 class IssueService(object):
@@ -529,8 +549,6 @@ class IssueExporter(object):
           "title": issue["title"],
           "comment_count": issue["comments"],
         }
-      print "Added previous GitHub issue %s '%s' (%s comments)" % (
-          issue["id"], issue["title"], issue["comments"])
 
   def _UpdateProgressBar(self):
     """Update issue count 'feed'.
