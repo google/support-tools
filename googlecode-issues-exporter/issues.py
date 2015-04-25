@@ -284,37 +284,7 @@ class GoogleCodeComment(object):
     Returns:
       The issue comment
     """
-    body = self._comment["content"]
-
-    # Add references to attachments as appropriate.
-    attachmentLines = []
-    for attachment in self._comment["attachments"] if "attachments" in self._comment else []:
-      if "isDeleted" in attachment:
-        line = " * *Attachment: %s (deleted)*" % (attachment["fileName"])
-        attachmentLines.append(line)
-        continue
-
-      link = "https://storage.googleapis.com/google-code-attachments/%s/issue-%d/comment-%d/%s" % (
-          self.GetIssue().GetProjectName(), self.GetIssue().GetId(),
-          self.GetId(), attachment["fileName"])
-
-      def has_extension(extension):
-        return attachment["fileName"].lower().endswith(extension)
-
-      is_image_attachment = False
-      for extension in [".png", ".jpg", ".jpeg", ".bmp", ".tif", ".gif"]:
-        is_image_attachment |= has_extension(".png")
-
-      if is_image_attachment:
-        line = " * *Attachment: %s<br>![%s](%s)*" % (
-            attachment["fileName"], attachment["fileName"], link)
-      else:
-        line = " * *Attachment: [%s](%s)*" % (attachment["fileName"], link)
-      attachmentLines.append(line)
-
-    if len(attachmentLines) > 0:
-      body += "\n<hr>\n" + "\n".join(attachmentLines)
-    return body
+    return self._comment["content"]
 
   def GetCreatedOn(self):
     """Get the creation date from a Google Code comment.
@@ -377,7 +347,7 @@ class GoogleCodeComment(object):
     # based on a prompt.
     comment_text = comment_text.replace("<b>", "")
     comment_text = comment_text.replace("</b>", "")
-    comment_text = WrapText(comment_text, 80)
+    comment_text = WrapText(comment_text, 82)  # In case it was already wrapped...
 
     # TODO(chrsmith): Unescample HTML. e.g. &gt; and &aacute;
     # TODO(chrsmith): Wrap lines at 80 chars.
@@ -387,7 +357,36 @@ class GoogleCodeComment(object):
     footer = "\n\nOriginal issue reported on code.google.com by `%s` on %s" % (
         author, TryFormatDate(comment_date))
 
+    # Add references to attachments as appropriate.
+    attachmentLines = []
+    for attachment in self._comment["attachments"] if "attachments" in self._comment else []:
+      if "isDeleted" in attachment:
+        line = " * *Attachment: %s (deleted)*" % (attachment["fileName"])
+        attachmentLines.append(line)
+        continue
 
+      link = "https://storage.googleapis.com/google-code-attachments/%s/issue-%d/comment-%d/%s" % (
+          self.GetIssue().GetProjectName(), self.GetIssue().GetId(),
+          self.GetId(), attachment["fileName"])
+
+      def has_extension(extension):
+        return attachment["fileName"].lower().endswith(extension)
+
+      is_image_attachment = False
+      for extension in [".png", ".jpg", ".jpeg", ".bmp", ".tif", ".gif"]:
+        is_image_attachment |= has_extension(".png")
+
+      if is_image_attachment:
+        line = " * *Attachment: %s<br>![%s](%s)*" % (
+            attachment["fileName"], attachment["fileName"], link)
+      else:
+        line = " * *Attachment: [%s](%s)*" % (attachment["fileName"], link)
+      attachmentLines.append(line)
+
+    if len(attachmentLines) > 0:
+      footer += "\n<hr>\n" + "\n".join(attachmentLines)
+
+    # Return the data to send to generate the comment.
     return body + footer
 
 

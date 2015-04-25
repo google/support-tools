@@ -172,7 +172,7 @@ class GitHubService(object):
       # only applies to certain API calls (like creating issues). And, alas, the
       # exact quota is undocumented. So the value below is simply a guess. See:
       # https://developer.github.com/v3/#abuse-rate-limits
-      req_min = 25
+      req_min = 15
       time.sleep(60 / req_min)
     return self._PerformHttpRequest("POST", url, body)
 
