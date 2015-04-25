@@ -99,6 +99,9 @@ class GoogleCodeIssueTest(unittest.TestCase):
         issue_json, REPO, USER_MAP)
     self.assertEqual(DEFAULT_USERNAME, issue.GetOwner())
 
+  def testGetCommentAuthor(self):
+    self.assertEqual("a_uthor", SINGLE_COMMENT.GetAuthor())
+
   def testTryFormatDate(self):
     self.assertEqual("last year", issues.TryFormatDate("last year"))
     self.assertEqual("2007-02-03 05:58:17",
@@ -113,6 +116,11 @@ class GoogleCodeIssueTest(unittest.TestCase):
                      "01234\n56789")
     self.assertEqual(issues.WrapText("a b c d e f g h", 4),
                      "a b c\nd e f\ng h")
+
+  def testLoadUserData(self):
+    # Verify the "identity dictionary" behavior.
+    user_data_dict = issues.LoadUserData(None, None)
+    self.assertEqual(user_data_dict["chrs...@goog.com"], "chrs...@goog.com")
 
 
 if __name__ == "__main__":

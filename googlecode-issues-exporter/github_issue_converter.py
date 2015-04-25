@@ -415,8 +415,7 @@ def ExportIssues(github_owner_username, github_repo_name, github_oauth_token,
   user_service = UserService(github_service)
 
   issue_data = issues.LoadIssueData(issue_file_path, project_name)
-  user_map = issues.LoadUserData(
-      user_file_path, github_owner_username, user_service)
+  user_map = issues.LoadUserData(user_file_path, user_service)
 
   issue_exporter = issues.IssueExporter(
       issue_service, user_service, issue_data, project_name, user_map)

@@ -22,6 +22,11 @@ import re
 import sys
 
 
+class IdentityDict(dict):
+  def __missing__(self, key):
+    return key
+
+
 def TryFormatDate(date):
   """Attempt to clean up a timestamp date."""
   try:
@@ -325,6 +330,7 @@ class GoogleCodeComment(object):
       The Google Code username that the issue comment is authored by or the
       repository owner if no mapping or email address exists.
     """
+    print "GetAuthor"
     if "author" not in self._comment:
       return None
 
@@ -469,17 +475,17 @@ def LoadIssueData(issue_file_path, project_name):
   raise ProjectNotFoundError("Project %s not found" % project_name)
 
 
-def LoadUserData(user_file_path, default_username, user_service):
-  """Loads user data from a file.
+def LoadUserData(user_file_path, user_service):
+  """Loads user data from a file. If not present, the user name will
+  just return whatever is passed to it.
 
   Args:
     user_file_path: path to the file to load
-    default_username: Username to use when no entry is found for a user.
     user_service: an instance of UserService
   """
-  result = collections.defaultdict(lambda: default_username)
+  identity_dict = IdentityDict()
   if not user_file_path:
-    return result
+    return identity_dict
 
   with open(user_file_path) as user_data:
     user_json = user_data.read()

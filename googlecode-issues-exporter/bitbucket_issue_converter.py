@@ -172,14 +172,14 @@ class IssueService(issues.IssueService):
 
 
 def ExportIssues(issue_file_path, project_name,
-                 user_file_path, default_issue_kind, default_username):
+                 user_file_path, default_issue_kind):
   """Exports all issues for a given project.
   """
   issue_service = IssueService()
   user_service = UserService()
 
   issue_data = issues.LoadIssueData(issue_file_path, project_name)
-  user_map = issues.LoadUserData(user_file_path, default_username, user_service)
+  user_map = issues.LoadUserData(user_file_path, user_service)
 
   issue_exporter = issues.IssueExporter(
       issue_service, user_service, issue_data, project_name, user_map)
@@ -218,8 +218,6 @@ def main(args):
                       help="A non-null string containing one of the following"
                       "values: bug, enhancement, proposal, task. Defaults to"
                       "bug")
-  parser.add_argument("--default_owner_username", required=True,
-                      help="The default issue owner's username")
   parsed_args, _ = parser.parse_known_args(args)
 
   # Default value.
@@ -229,8 +227,7 @@ def main(args):
 
   ExportIssues(
     parsed_args.issue_file_path, parsed_args.project_name,
-    parsed_args.user_file_path, parsed_args.default_issue_kind,
-    parsed_args.default_owner_username)
+    parsed_args.user_file_path, parsed_args.default_issue_kind)
 
 
 if __name__ == "__main__":
