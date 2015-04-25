@@ -400,7 +400,7 @@ class IssueService(issues.IssueService):
     Returns:
       The GitHub issue number.
     """
-    assert "number" in content, "Error getting GH issue no from: %s" % content
+    assert "number" in content, "Getting issue number from: %s" % content
     return content["number"]
 
 

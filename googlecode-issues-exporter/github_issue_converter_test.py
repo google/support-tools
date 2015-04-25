@@ -421,12 +421,15 @@ class TestIssueExporter(unittest.TestCase):
 
   def testGetAllPreviousIssues(self):
     self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
-    content = [{"id": 1, "title": "issue_title"}]
+    content = [{"id": 1, "title": "issue_title", "comments": 2}]
     self.github_service.AddResponse(content=content)
     self.issue_exporter._GetAllPreviousIssues()
     self.assertEqual(1, len(self.issue_exporter._previously_created_issues))
     self.assertTrue(1 in self.issue_exporter._previously_created_issues)
-    self.assertEqual("issue_title", self.issue_exporter._previously_created_issues[1])
+    self.assertEqual("issue_title",
+                     self.issue_exporter._previously_created_issues[1]["title"])
+    self.assertEqual(2,
+                     self.issue_exporter._previously_created_issues[1]["comment_count"])
 
   def testCreateIssue(self):
     content = {"number": 1234}
@@ -465,10 +468,10 @@ class TestIssueExporter(unittest.TestCase):
     self.github_service.AddResponse(content={"number": 1})
     self.github_service.AddResponse(content={"number": 10})
     self.github_service.AddResponse(content={"number": 11})
-    self.github_service.AddResponse(content={"number": 12})
     self.github_service.AddResponse(content={"number": 2})
+    self.github_service.AddResponse(content={"number": 20})
+    self.github_service.AddResponse(content={"number": 3})
     self.github_service.AddResponse(content={"number": 30})
-    self.github_service.AddResponse(content={"number": 31})
 
     self.issue_exporter.Start()
 
@@ -481,22 +484,62 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(1, self.issue_exporter._comment_total)
 
   def testStart_SkipAlreadyCreatedIssues(self):
-    self.issue_exporter._previously_created_issues["1"] = "Title1"
-    self.issue_exporter._previously_created_issues["2"] = "Title2"
+    self.issue_exporter._previously_created_issues["1"] = {
+        "title": "Title1",
+        "comment_count": 3
+        }
+    self.issue_exporter._previously_created_issues["2"] = {
+        "title": "Title2",
+        "comment_count": 1
+        }
     self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
 
     self.github_service.AddResponse(content={"number": 3})
-    self.github_service.AddResponse(content={"number": 4})
 
     self.issue_exporter.Start()
     self.assertEqual(2, self.issue_exporter._skipped_issues)
     self.assertEqual(3, self.issue_exporter._issue_total)
     self.assertEqual(3, self.issue_exporter._issue_number)
 
-  def testStart_GetErrorIfGoogleCodeAndGitHubDoNotMatch(self):
-    self.issue_exporter._previously_created_issues["1"] = "Title1"
-    self.issue_exporter._previously_created_issues["2"] = "<not issue2's title>"
+  def testStart_ReAddMissedComments(self):
+    self.issue_exporter._previously_created_issues["1"] = {
+        "title": "Title1",
+        "comment_count": 1  # Missing 2 comments.
+        }
     self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
+
+    # First requests to re-add comments, then create issues.
+    self.github_service.AddResponse(content={"number": 11})
+
+    self.github_service.AddResponse(content={"number": 2})
+    self.github_service.AddResponse(content={"number": 20})
+    self.github_service.AddResponse(content={"number": 3})
+    self.github_service.AddResponse(content={"number": 30})
+
+    self.issue_exporter.Start()
+    self.assertEqual(1, self.issue_exporter._skipped_issues)
+    self.assertEqual(3, self.issue_exporter._issue_total)
+    self.assertEqual(3, self.issue_exporter._issue_number)
+
+
+  def testStart_GetErrorIfGoogleCodeAndGitHubDoNotMatch(self):
+    self.issue_exporter._previously_created_issues["1"] = {
+        "title": "Title1"}
+    self.issue_exporter._previously_created_issues["2"] = {
+        "title": "< not issue #2's title >"}
+    self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
+
+    with self.assertRaises(RuntimeError):
+      self.issue_exporter.Start()
+
+  def testStart_GetErrorIfCreatedGitHubIDDoesNotMatch(self):
+    self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
+
+    # Note: Some responses are from CreateIssues, others are from CreateComment.
+    self.github_service.AddResponse(content={"number": 1})
+    self.github_service.AddResponse(content={"number": 10})
+    self.github_service.AddResponse(content={"number": 11})
+    self.github_service.AddResponse(content={"number": 3})  # Expects next issue ID 2.
 
     with self.assertRaises(RuntimeError):
       self.issue_exporter.Start()
