@@ -377,6 +377,7 @@ class GoogleCodeComment(object):
     # based on a prompt.
     comment_text = comment_text.replace("<b>", "")
     comment_text = comment_text.replace("</b>", "")
+    comment_text = WrapText(comment_text, 80)
 
     # TODO(chrsmith): Unescample HTML. e.g. &gt; and &aacute;
     # TODO(chrsmith): Wrap lines at 80 chars.
