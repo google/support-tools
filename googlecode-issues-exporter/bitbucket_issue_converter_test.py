@@ -87,8 +87,8 @@ class TestIssueService(unittest.TestCase):
   def testCreateComment(self):
     comment_body = {
         "content": (
-            "Comment [#1](https://code.google.com/p/repo/issues/detail" +
-            "?id=1#c1) originally posted by a_uthor on last year:\n\none"),
+            "```\none\n```\n\nOriginal issue reported on code.google.com "
+            "by `a_uthor` on last year"),
         "created_on": "last year",
         "id": 1,
         "issue": 1,
