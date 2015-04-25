@@ -121,14 +121,9 @@ class GoogleCodeIssue(object):
   def GetOwner(self):
     """Get the owner username of a Google Code issue.
 
-    Returns:
-      The Google Code username that owns the issue or the
-      repository owner if no mapping or email address exists.
+    This will ALWAYS be the person requesting the issue export.
     """
-    if "owner" not in self._issue:
-      return None
-    owner = self._issue["owner"]["name"]
-    return self._user_map[owner]
+    return self._user_map["user_requesting_export"]
 
   def GetContentUpdatedOn(self):
     """Get the date the content was last updated from a Google Code issue.
@@ -318,7 +313,6 @@ class GoogleCodeComment(object):
       The Google Code username that the issue comment is authored by or the
       repository owner if no mapping or email address exists.
     """
-    print "GetAuthor"
     if "author" not in self._comment:
       return None
 

@@ -307,7 +307,7 @@ class IssueService(issues.IssueService):
       response, content = self._github_service.PerformGetRequest(
           self._github_issues_url, params=params)
       if not _CheckSuccessful(response):
-        raise IOError("Failed to retrieve previous issues.\n%s" % content)
+        raise IOError("Failed to retrieve previous issues.\n\n%s" % content)
       if not content:
         return github_issues
       else:
@@ -343,8 +343,10 @@ class IssueService(issues.IssueService):
     if not _CheckSuccessful(response):
       # Newline character at the beginning of the line to allows for in-place
       # updating of the counts of the issues and comments.
-      raise issues.ServiceError("\nFailed to create issue %d: %s.\n%s" % (
-          googlecode_issue.GetId(), issue_title, content))
+      raise issues.ServiceError(
+          "\nFailed to create issue #%d '%s'.\n\n\n"
+          "Response:\n%s\n\n\nContent:\n%s" % (
+              googlecode_issue.GetId(), issue_title, response, content))
 
     return self._GetIssueNumber(content)
 
@@ -387,8 +389,9 @@ class IssueService(issues.IssueService):
 
     if not _CheckSuccessful(response):
       raise issues.ServiceError(
-          "\nFailed to create issue comment (%s) for issue #%d\n%s" %
-          (googlecode_comment.GetContent(), issue_number, content))
+          "\nFailed to create issue comment for issue #%d\n\n"
+          "Response:\n%s\n\nContent:\n%s\n\n" %
+          (issue_number, response, content))
     time.sleep(self._comment_delay)
 
   def _GetIssueNumber(self, content):
@@ -416,6 +419,9 @@ def ExportIssues(github_owner_username, github_repo_name, github_oauth_token,
 
   issue_data = issues.LoadIssueData(issue_file_path, project_name)
   user_map = issues.LoadUserData(user_file_path, user_service)
+
+  # Add a special "user_requesting_export" user, which comes in handy.
+  user_map["user_requesting_export"] = github_owner_username
 
   issue_exporter = issues.IssueExporter(
       issue_service, user_service, issue_data, project_name, user_map)
