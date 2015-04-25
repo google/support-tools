@@ -166,7 +166,7 @@ class Http2Mock(object):
     self.last_method = None
     self.last_body = None
 
-  def request(self, url, method, body=None):
+  def request(self, url, method, headers=None, body=None):
     """Makes a fake HTTP request.
 
     Args:
@@ -190,6 +190,7 @@ class TestGitHubService(unittest.TestCase):
     self.http_mock = Http2Mock()
     self.github_service = github_issue_converter.GitHubService(
         GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN,
+        rate_limit=False,
         http_instance=self.http_mock)
 
   def testSuccessfulRequestSuccess(self):
@@ -303,6 +304,7 @@ class TestIssueService(unittest.TestCase):
     self.http_mock = Http2Mock()
     self.github_service = github_issue_converter.GitHubService(
         GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN,
+        rate_limit=False,
         http_instance=self.http_mock)
     self.github_issue_service = github_issue_converter.IssueService(
         self.github_service, comment_delay=0)
@@ -378,47 +380,7 @@ class TestIssueExporter(unittest.TestCase):
         NO_ISSUE_DATA, GITHUB_REPO, USER_MAP)
     self.issue_exporter.Init()
 
-  def testGetAllPreviousIssues(self):
-    self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
-    content = [{"title": "issue_title"}]
-    self.github_service.AddResponse(content=content)
-    self.issue_exporter._GetAllPreviousIssues()
-    self.assertEqual(1, len(self.issue_exporter._previously_created_issues))
-    self.assertTrue("issue_title" in
-                    self.issue_exporter._previously_created_issues)
-
-  def testCreateIssue(self):
-    content = {"number": 1234}
-    self.github_service.AddResponse(content=content)
-
-    issue_number = self.issue_exporter._CreateIssue(SINGLE_ISSUE)
-    self.assertEqual(1234, issue_number)
-
-  def testCreateIssueFailedOpenRequest(self):
-    self.github_service.AddFailureResponse()
-    with self.assertRaises(issues.ServiceError):
-      self.issue_exporter._CreateIssue(SINGLE_ISSUE)
-
-  def testCreateIssueFailedCloseRequest(self):
-    content = {"number": 1234}
-    self.github_service.AddResponse(content=content)
-    self.github_service.AddFailureResponse()
-    issue_number = self.issue_exporter._CreateIssue(SINGLE_ISSUE)
-    self.assertEqual(1234, issue_number)
-
-  def testCreateComments(self):
-    self.assertEqual(0, self.issue_exporter._comment_number)
-    self.issue_exporter._CreateComments(COMMENTS_DATA, 1234, SINGLE_ISSUE)
-    self.assertEqual(4, self.issue_exporter._comment_number)
-
-  def testCreateCommentsFailure(self):
-    self.github_service.AddFailureResponse()
-    self.assertEqual(0, self.issue_exporter._comment_number)
-    with self.assertRaises(issues.ServiceError):
-      self.issue_exporter._CreateComments(COMMENTS_DATA, 1234, SINGLE_ISSUE)
-
-  def testStart(self):
-    self.issue_exporter._issue_json_data = [
+    self.TEST_ISSUE_DATA = [
         {
             "id": "1",
             "title": "Title1",
@@ -456,14 +418,57 @@ class TestIssueExporter(unittest.TestCase):
                      }
         }]
 
-    self.github_service.AddResponse(content={"number": 1234})
-    self.github_service.AddResponse(content={"number": 2345})
-    self.github_service.AddResponse(content={"number": 3456})
-    self.github_service.AddResponse(content={"number": 5678})
-    self.github_service.AddResponse(content={"number": 6789})
-    self.github_service.AddResponse(content={"number": 7890})
-    self.github_service.AddResponse(content={"number": 8901})
-    self.github_service.AddResponse(content={"number": 9012})
+
+  def testGetAllPreviousIssues(self):
+    self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
+    content = [{"id": 1, "title": "issue_title"}]
+    self.github_service.AddResponse(content=content)
+    self.issue_exporter._GetAllPreviousIssues()
+    self.assertEqual(1, len(self.issue_exporter._previously_created_issues))
+    self.assertTrue(1 in self.issue_exporter._previously_created_issues)
+    self.assertEqual("issue_title", self.issue_exporter._previously_created_issues[1])
+
+  def testCreateIssue(self):
+    content = {"number": 1234}
+    self.github_service.AddResponse(content=content)
+
+    issue_number = self.issue_exporter._CreateIssue(SINGLE_ISSUE)
+    self.assertEqual(1234, issue_number)
+
+  def testCreateIssueFailedOpenRequest(self):
+    self.github_service.AddFailureResponse()
+    with self.assertRaises(issues.ServiceError):
+      self.issue_exporter._CreateIssue(SINGLE_ISSUE)
+
+  def testCreateIssueFailedCloseRequest(self):
+    content = {"number": 1234}
+    self.github_service.AddResponse(content=content)
+    self.github_service.AddFailureResponse()
+    issue_number = self.issue_exporter._CreateIssue(SINGLE_ISSUE)
+    self.assertEqual(1234, issue_number)
+
+  def testCreateComments(self):
+    self.assertEqual(0, self.issue_exporter._comment_number)
+    self.issue_exporter._CreateComments(COMMENTS_DATA, 1234, SINGLE_ISSUE)
+    self.assertEqual(4, self.issue_exporter._comment_number)
+
+  def testCreateCommentsFailure(self):
+    self.github_service.AddFailureResponse()
+    self.assertEqual(0, self.issue_exporter._comment_number)
+    with self.assertRaises(issues.ServiceError):
+      self.issue_exporter._CreateComments(COMMENTS_DATA, 1234, SINGLE_ISSUE)
+
+  def testStart(self):
+    self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
+
+    # Note: Some responses are from CreateIssues, others are from CreateComment.
+    self.github_service.AddResponse(content={"number": 1})
+    self.github_service.AddResponse(content={"number": 10})
+    self.github_service.AddResponse(content={"number": 11})
+    self.github_service.AddResponse(content={"number": 12})
+    self.github_service.AddResponse(content={"number": 2})
+    self.github_service.AddResponse(content={"number": 30})
+    self.github_service.AddResponse(content={"number": 31})
 
     self.issue_exporter.Start()
 
@@ -476,11 +481,17 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(1, self.issue_exporter._comment_total)
 
   def testStartSkipAlreadyCreatedIssues(self):
-    self.issue_exporter._previously_created_issues.add("Title1")
-    self.issue_exporter._issue_json_data = [{"title": "Title1"}]
+    self.issue_exporter._previously_created_issues["1"] = "Title1"
+    self.issue_exporter._previously_created_issues["2"] = "Title2"
+    self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
+
+    self.github_service.AddResponse(content={"number": 3})
+    self.github_service.AddResponse(content={"number": 4})
+
     self.issue_exporter.Start()
-    self.assertEqual(1, self.issue_exporter._issue_total)
-    self.assertEqual(0, self.issue_exporter._issue_number)
+    self.assertEqual(2, self.issue_exporter._skipped_issues)
+    self.assertEqual(3, self.issue_exporter._issue_total)
+    self.assertEqual(3, self.issue_exporter._issue_number)
 
 if __name__ == "__main__":
   unittest.main(buffer=True)

@@ -500,29 +500,31 @@ class IssueExporter(object):
     self._project_name = project_name
     self._user_map = user_map
 
-    self._previously_created_issues = set()
+    # Mapping from issue ID to the issue's title. This is used to verify
+    # consistency with an previous attempts at exporting issues.
+    self._previously_created_issues = {}
 
     self._issue_total = 0
     self._issue_number = 0
     self._comment_number = 0
     self._comment_total = 0
+    self._skipped_issues = 0
 
   def Init(self):
     """Initialize the needed variables."""
     self._GetAllPreviousIssues()
 
   def _GetAllPreviousIssues(self):
-    """Gets all previously uploaded issues.
-
-    Creates a hash of the issue titles, they will be unique as the Google Code
-    issue number is in each title.
-    """
+    """Gets all previously uploaded issues."""
     print "Getting any previously added issues..."
     open_issues = self._issue_service.GetIssues("open")
     closed_issues = self._issue_service.GetIssues("closed")
     issues = open_issues + closed_issues
     for issue in issues:
-      self._previously_created_issues.add(issue["title"])
+      print "%s" % issue
+      issue["id"] not in self._previously_created_issues or die(
+          "GitHub returned multiple issues with the same ID?")
+      self._previously_created_issues[issue["id"]] = issue["title"]
 
   def _UpdateProgressBar(self):
     """Update issue count 'feed'.
@@ -585,17 +587,17 @@ class IssueExporter(object):
 
     self._issue_total = len(self._issue_json_data)
     self._issue_number = 0
-    skipped_issues = 0
+    self._skipped_issues = 0
     for issue in self._issue_json_data:
       googlecode_issue = GoogleCodeIssue(
           issue, self._project_name, self._user_map)
-      issue_title = googlecode_issue.GetTitle()
 
       self._issue_number += 1
       self._UpdateProgressBar()
 
-      if issue_title in self._previously_created_issues:
-        skipped_issues += 1
+      issue_id = googlecode_issue.GetId()
+      if issue_id in self._previously_created_issues:
+        self._skipped_issues += 1
         continue
 
       issue_number = self._CreateIssue(googlecode_issue)
@@ -608,6 +610,6 @@ class IssueExporter(object):
       if not googlecode_issue.IsOpen():
         self._issue_service.CloseIssue(issue_number)
 
-    if skipped_issues > 0:
+    if self._skipped_issues > 0:
       print ("\nSkipped %d/%d issue previously uploaded." %
-             (skipped_issues, self._issue_total))
+             (self._skipped_issues, self._issue_total))
