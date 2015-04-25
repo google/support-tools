@@ -584,50 +584,10 @@ class IssueExporter(object):
     This will traverse the issues and attempt to create each issue and its
     comments.
     """
-    # TODO(chris): Break into another function.
-    if len(self._previously_created_issues):
-      print ("Existing issues detected for the repo. Likely due to"
-             " the script being previously aborted or killed.")
-
-      # Verify the last GitHub issue matches the Google Code issue. Also
-      # that it has all of the expected comments.
-      last_gh_issue_id = -1
-      for id in self._previously_created_issues:
-        if id > last_gh_issue_id:
-          last_gh_issue_id = id
-      last_gh_issue = self._previously_created_issues[last_gh_issue_id]
-
-      last_gc_issue = None
-      for issue in self._issue_json_data:
-        if issue["id"] == last_gh_issue_id and (
-           issue["title"] == last_gh_issue["title"]):
-          last_gc_issue = GoogleCodeIssue(
-              issue, self._project_name, self._user_map)
-          break
-
-      if last_gc_issue is None:
-        message = "Were GitHub issues added since the last import started?"
-        raise RuntimeError("Unable to find Google Code issue #%s '%s'.\n%s" % (
-            last_gh_issue_id, last_gh_issue["title"], message))
-
-      print "Last GitHub issue (%s: %s) matches. Checking comments..." % (
-          last_gh_issue_id, last_gh_issue["title"])
-
-      # Verify the last GitHub issue contains all the comments that the
-      # Google Code issue does. (That they weren't truncated.)
-      num_gc_issue_comments = len(last_gc_issue.GetComments())
-      print "last_gh_issue %s\nlast_gc_issue %s %s %s" % (last_gh_issue, last_gc_issue.GetComments(), last_gc_issue.GetId(), last_gc_issue.GetTitle())
-      if last_gh_issue["comment_count"] != num_gc_issue_comments:
-        print "GitHub issue has fewer comments than Google Code's. Fixing..."
-        for idx in range(last_gh_issue["comment_count"], num_gc_issue_comments):
-          comment = last_gc_issue.GetComments()[idx]
-          googlecode_comment = GoogleCodeComment(last_gc_issue, comment)
-          self._issue_service.CreateComment(
-              # issue_number == source_issue_id
-              int(last_gc_issue.GetId()), int(last_gc_issue.GetId()),
-              googlecode_comment, self._project_name)
-
-      print "Done! Resuming normal issue execution."
+    # If there are existing issues, then confirm they exactly match the Google
+    # Code issues. Otherwise issue IDs will not match and/or there may be
+    # missing data.
+    self._AssertInGoodState()
 
     self._issue_total = len(self._issue_json_data)
     self._issue_number = 0
@@ -661,3 +621,59 @@ class IssueExporter(object):
     if self._skipped_issues > 0:
       print ("\nSkipped %d/%d issue previously uploaded." %
              (self._skipped_issues, self._issue_total))
+
+  def _AssertInGoodState(self):
+    """Checks if the last issue exported is sound, otherwise raises an error.
+
+    Checks the existing issues that have been exported and confirms that it
+    matches the issue on Google Code. (Both Title and ID match.) It then
+    confirms that it has all of the expected comments, adding any missing ones
+    as necessary.
+    """
+    if len(self._previously_created_issues) == 0:
+      return
+
+    print ("Existing issues detected for the repo. Likely due to a previous\n"
+           "run being aborted or killed. Checking consistency...")
+
+    # Get the last exported issue, and its dual on Google Code.
+    last_gh_issue_id = -1
+    for id in self._previously_created_issues:
+      if id > last_gh_issue_id:
+        last_gh_issue_id = id
+        last_gh_issue = self._previously_created_issues[last_gh_issue_id]
+
+    print "last_gh_issue %s %s" % (last_gh_issue_id, last_gh_issue)
+    print "issue_jason__daata %s" % self._issue_json_data
+
+    last_gc_issue = None
+    for issue in self._issue_json_data:
+      if int(issue["id"]) == int(last_gh_issue_id) and (
+          issue["title"] == last_gh_issue["title"]):
+        last_gc_issue = GoogleCodeIssue(issue,
+                                        self._project_name,
+                                        self._user_map)
+        break
+
+    if last_gc_issue is None:
+      raise RuntimeError(
+          "Unable to find Google Code issue #%s '%s'.\n"
+          "Were issues added to GitHub since last export attempt?" % (
+              last_gh_issue_id, last_gh_issue["title"]))
+
+    print "Last issue (#%s) matches. Checking comments..." % (last_gh_issue_id)
+
+    # Check comments. Add any missing ones as needed.
+    num_gc_issue_comments = len(last_gc_issue.GetComments())
+    if last_gh_issue["comment_count"] != num_gc_issue_comments:
+      print "GitHub issue has fewer comments than Google Code's. Fixing..."
+      for idx in range(last_gh_issue["comment_count"], num_gc_issue_comments):
+        comment = last_gc_issue.GetComments()[idx]
+        googlecode_comment = GoogleCodeComment(last_gc_issue, comment)
+        # issue_number == source_issue_id
+        self._issue_service.CreateComment(
+            int(last_gc_issue.GetId()), int(last_gc_issue.GetId()),
+            googlecode_comment, self._project_name)
+        print "  Added comment #%s." % (idx)
+
+    print "Done! Issue tracker now in expected state. Ready for more exports."

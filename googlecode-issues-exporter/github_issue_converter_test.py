@@ -497,6 +497,7 @@ class TestIssueExporter(unittest.TestCase):
     self.github_service.AddResponse(content={"number": 3})
 
     self.issue_exporter.Start()
+
     self.assertEqual(2, self.issue_exporter._skipped_issues)
     self.assertEqual(3, self.issue_exporter._issue_total)
     self.assertEqual(3, self.issue_exporter._issue_number)
