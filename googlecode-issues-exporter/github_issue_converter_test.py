@@ -480,7 +480,7 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(1, self.issue_exporter._comment_number)
     self.assertEqual(1, self.issue_exporter._comment_total)
 
-  def testStartSkipAlreadyCreatedIssues(self):
+  def testStart_SkipAlreadyCreatedIssues(self):
     self.issue_exporter._previously_created_issues["1"] = "Title1"
     self.issue_exporter._previously_created_issues["2"] = "Title2"
     self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
@@ -492,6 +492,15 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(2, self.issue_exporter._skipped_issues)
     self.assertEqual(3, self.issue_exporter._issue_total)
     self.assertEqual(3, self.issue_exporter._issue_number)
+
+  def testStart_GetErrorIfGoogleCodeAndGitHubDoNotMatch(self):
+    self.issue_exporter._previously_created_issues["1"] = "Title1"
+    self.issue_exporter._previously_created_issues["2"] = "<not issue2's title>"
+    self.issue_exporter._issue_json_data = self.TEST_ISSUE_DATA
+
+    with self.assertRaises(RuntimeError):
+      self.issue_exporter.Start()
+
 
 if __name__ == "__main__":
   unittest.main(buffer=True)

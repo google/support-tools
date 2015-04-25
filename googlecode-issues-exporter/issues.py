@@ -585,6 +585,27 @@ class IssueExporter(object):
       print ("Existing issues detected for the repo. Likely due to"
              " the script being previously aborted or killed.")
 
+      # Verify the last GitHub issue matches the Google Code issue. Also
+      # that it has all of the expected comments.
+      last_gh_issue_id = -1
+      for id in self._previously_created_issues:
+        if id > last_gh_issue_id:
+          last_gh_issue_id = id
+      last_gh_issue_title = self._previously_created_issues[last_gh_issue_id]
+
+      last_gc_issue = None
+      for issue in self._issue_json_data:
+        if issue["id"] == last_gh_issue_id and (
+           issue["title"] == last_gh_issue_title):
+          last_gc_issue = issue
+          break
+
+      if last_gc_issue is None:
+        raise RuntimeError("Unable to find Google Code issue #%s '%s'." % (
+            last_gh_issue_id, last_gh_issue_title))
+
+      print "Found last issues, they match."
+
     self._issue_total = len(self._issue_json_data)
     self._issue_number = 0
     self._skipped_issues = 0
@@ -610,6 +631,7 @@ class IssueExporter(object):
       if not googlecode_issue.IsOpen():
         self._issue_service.CloseIssue(issue_number)
 
+    # TODO(chrsmith): Issue a warning if/when the issue ID get out of sync.
     if self._skipped_issues > 0:
       print ("\nSkipped %d/%d issue previously uploaded." %
              (self._skipped_issues, self._issue_total))
