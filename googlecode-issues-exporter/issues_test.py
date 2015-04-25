@@ -106,6 +106,14 @@ class GoogleCodeIssueTest(unittest.TestCase):
     self.assertEqual("2014-01-05 04:43:15",
                      issues.TryFormatDate("2014-01-05T04:43:15.000Z"))
 
+  def testWrapText(self):
+    self.assertEqual(issues.WrapText("0123456789", 3),
+                     "0123456789")
+    self.assertEqual(issues.WrapText("01234 56789", 3),
+                     "01234\n56789")
+    self.assertEqual(issues.WrapText("a b c d e f g h", 4),
+                     "a b c\nd e f\ng h")
+
 
 if __name__ == "__main__":
   unittest.main(buffer=True)

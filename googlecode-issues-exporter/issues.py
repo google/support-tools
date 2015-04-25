@@ -33,6 +33,26 @@ def TryFormatDate(date):
   except ValueError as ve:
     return date
 
+
+def WrapText(text, max):
+  """Inserts a newline if any line of a file is > max chars.
+
+  Note that the newline is inserted at the first whitespace
+  character, so there may be lines longer than max.
+  """
+  char_list = list(text)
+  last_linebreak = 0
+  for i in range(0, len(char_list)):
+    if char_list[i] == '\n':
+      last_linebreak = i
+    if i - last_linebreak > max and char_list[i] == ' ':
+      # Replace ' ' with '\n'
+      char_list.pop(i)
+      char_list.insert(i, '\n')
+      last_linebreak = i
+  return ''.join(char_list)
+
+
 class Error(Exception):
   """Base error class."""
 
@@ -233,7 +253,6 @@ class GoogleCodeIssue(object):
     # description.
     googlecode_comment = GoogleCodeComment(self, self._GetDescription())
     content = googlecode_comment.GetContent()
-    content = FixUpComment(content)
     author = googlecode_comment.GetAuthor()
     create_date = googlecode_comment.GetCreatedOn()
     url = "https://code.google.com/p/%s/issues/detail?id=%s" % (
@@ -352,17 +371,14 @@ class GoogleCodeComment(object):
     comment_text = self.GetContent()
 
     if not comment_text:
-      comment_text = '&lt;empty&gt;'
-    else:
-      comment_text = FixUpComment(comment_text)
+      comment_text = "(No text was entered with this change)"
 
     # Remove <b> tags, which Codesite automatically includes if issue body is
     # based on a prompt.
     comment_text = comment_text.replace("<b>", "")
     comment_text = comment_text.replace("</b>", "")
 
-    # TODO(chrsmith): Confirm FixUpComment replaces <b>s and such.
-    # TODO(chrsmith): Unescample HTML.
+    # TODO(chrsmith): Unescample HTML. e.g. &gt; and &aacute;
     # TODO(chrsmith): Wrap lines at 80 chars.
     body = "```\n" + comment_text + "\n```"
 
@@ -427,26 +443,6 @@ class IssueService(object):
       project_name: The Google Code project name.
     """
     raise NotImplementedError()
-
-
-def FixUpComment(comment):
-  """Fixes up comments."""
-  formatted = []
-  preformat_rest_of_comment = False
-  for line in comment.split("\n"):
-    if re.match(r'^#+ ', line) or re.match(r'^Index: ', line):
-      preformat_rest_of_comment = True
-    elif '--- cut here ---' in line:
-      preformat_rest_of_comment = True
-    if preformat_rest_of_comment:
-      formatted.append("    %s" % line)
-    else:
-      # "#3" style commends get converted into links to issue #3, etc.
-      # We don't want this. There's no way to escape this so put a non
-      # breaking space to prevent.
-      line = re.sub(r"#(\d+)", r"#&nbsp;\g<1>", line)
-      formatted.append(line)
-  return '\n'.join(formatted)
 
 
 def LoadIssueData(issue_file_path, project_name):
@@ -686,7 +682,7 @@ class IssueExporter(object):
     # Check comments. Add any missing ones as needed.
     num_gc_issue_comments = len(last_gc_issue.GetComments())
     if last_gh_issue["comment_count"] != num_gc_issue_comments:
-      print "GitHub issue has fewer comments than Google Code's. Fixing..."
+      print "GitHub issue has fewer comments than Google Code's. Fixng..."
       for idx in range(last_gh_issue["comment_count"], num_gc_issue_comments):
         comment = last_gc_issue.GetComments()[idx]
         googlecode_comment = GoogleCodeComment(last_gc_issue, comment)
