@@ -249,22 +249,10 @@ class GoogleCodeIssue(object):
     return "state" in self._issue and self._issue["state"] == "open"
 
   def GetDescription(self):
-    """Returns the Description of the issue.
-
-    The description has been modified to include origin details.
-    """
-    issue_id = self.GetId()
-    # code.google.com always has one comment (item #0) which is the issue
-    # description.
+    """Returns the Description of the issue."""
+    # Just return the description of the underlying comment.
     googlecode_comment = GoogleCodeComment(self, self._GetDescription())
-    content = googlecode_comment.GetContent()
-    author = googlecode_comment.GetAuthor()
-    create_date = googlecode_comment.GetCreatedOn()
-    url = "https://code.google.com/p/%s/issues/detail?id=%s" % (
-        self._project_name, issue_id)
-    body = "Original [issue %s](%s) created by %s on %s:\n\n%s" % (
-        issue_id, url, author, create_date, content)
-    return body
+    return googlecode_comment.GetDescription()
 
 
 class GoogleCodeComment(object):
@@ -338,10 +326,7 @@ class GoogleCodeComment(object):
     return self.GetIssue().GetUserMap()[author]
 
   def GetDescription(self):
-    """Returns the Description of the comment.
-
-    The description has been modified to include origin details.
-    """
+    """Returns the Description of the comment."""
     author = self.GetAuthor()
     comment_date = self.GetCreatedOn()
     comment_text = self.GetContent()

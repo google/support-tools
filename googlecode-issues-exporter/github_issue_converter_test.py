@@ -311,8 +311,9 @@ class TestIssueService(unittest.TestCase):
 
   def testCreateIssue(self):
     issue_body = {
-        "body": ("Original [issue 1](https://code.google.com/p/repo/issues" +
-                 "/detail?id=1) created by a_uthor on last year:\n\none"),
+        "body": (
+            "```\none\n```\n\nOriginal issue reported on code.google.com"
+            " by `a_uthor` on last year"),
         "assignee": "a_uthor",
         "labels": ["awesome", "great"],
         "title": "issue_title",

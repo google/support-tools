@@ -63,8 +63,9 @@ class TestIssueService(unittest.TestCase):
   def testCreateIssue(self):
     issue_body = {
         "assignee": "a_uthor",
-        "content": ("Original [issue 1](https://code.google.com/p/repo/issues" +
-                 "/detail?id=1) created by a_uthor on last year:\n\none"),
+        "content": (
+            "```\none\n```\n\nOriginal issue reported on code.google.com"
+            " by `a_uthor` on last year"),
         "content_updated_on": "last month",
         "created_on": "last year",
         "id": 1,
