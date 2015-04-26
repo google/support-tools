@@ -62,10 +62,12 @@ class TestIssueService(unittest.TestCase):
 
   def testCreateIssue(self):
     issue_body = {
-        "assignee": "a_uthor",
+        "assignee": "default_username",
         "content": (
             "```\none\n```\n\nOriginal issue reported on code.google.com"
-            " by `a_uthor` on last year"),
+            " by `a_uthor` on last year\n"
+            "- **Labels added**: added-label\n"
+            "- **Labels removed**: removed-label\n"),
         "content_updated_on": "last month",
         "created_on": "last year",
         "id": 1,
@@ -85,11 +87,14 @@ class TestIssueService(unittest.TestCase):
     # no-op
     self._bitbucket_issue_service.CloseIssue(123)
 
+  # TODO(chris): Add testcase for an issue comment  with attachments.
   def testCreateComment(self):
     comment_body = {
         "content": (
             "```\none\n```\n\nOriginal issue reported on code.google.com "
-            "by `a_uthor` on last year"),
+            "by `a_uthor` on last year\n"
+            "- **Labels added**: added-label\n"
+            "- **Labels removed**: removed-label\n"),
         "created_on": "last year",
         "id": 1,
         "issue": 1,

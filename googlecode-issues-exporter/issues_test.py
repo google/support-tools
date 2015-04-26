@@ -40,6 +40,9 @@ COMMENT_ONE = {
     "id": 1,
     "published": "last year",
     "author": {"name": "user@email.com"},
+    "updates": {
+        "labels": ["added-label", "-removed-label"],
+        },
 }
 COMMENT_TWO = {
     "content": "two",
@@ -84,13 +87,15 @@ class GoogleCodeIssueTest(unittest.TestCase):
   """Tests for GoogleCodeIssue."""
 
   def testGetIssueOwner(self):
-    self.assertEqual("a_uthor", SINGLE_ISSUE.GetOwner())
+    # Report all issues coming from the person who initiated the
+    # export.
+    self.assertEqual("default_username", SINGLE_ISSUE.GetOwner())
 
   def testGetIssueOwnerNoOwner(self):
     issue_json = ISSUE_JSON.copy()
     del issue_json["owner"]
     issue = issues.GoogleCodeIssue(issue_json, REPO, USER_MAP)
-    self.assertEqual(None, issue.GetOwner())
+    self.assertEqual("default_username", issue.GetOwner())
 
   def testGetIssueUserOwner(self):
     issue_json = copy.deepcopy(ISSUE_JSON)
@@ -101,6 +106,14 @@ class GoogleCodeIssueTest(unittest.TestCase):
 
   def testGetCommentAuthor(self):
     self.assertEqual("a_uthor", SINGLE_COMMENT.GetAuthor())
+
+  def testGetCommentDescription(self):
+    self.assertEqual(
+        "```\none\n```\n\nOriginal issue reported on code.google.com by "
+        "`a_uthor` on last year\n"
+        "- **Labels added**: added-label\n"
+        "- **Labels removed**: removed-label\n",
+        SINGLE_COMMENT.GetDescription())
 
   def testTryFormatDate(self):
     self.assertEqual("last year", issues.TryFormatDate("last year"))

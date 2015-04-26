@@ -290,6 +290,13 @@ class GoogleCodeComment(object):
     """
     return self._comment["id"]
 
+  def GetLabels(self):
+    """Get the labels modified with the comment."""
+    if "updates" in self._comment:
+      if "labels" in self._comment["updates"]:
+        return self._comment["updates"]["labels"]
+    return []
+
   def GetIssue(self):
     """Get the GoogleCodeIssue this comment belongs to.
 
@@ -330,24 +337,37 @@ class GoogleCodeComment(object):
 
     # Remove <b> tags, which Codesite automatically includes if issue body is
     # based on a prompt.
+    # TODO(chrsmith): Unescample HTML. e.g. &gt; and &aacute;
     comment_text = comment_text.replace("<b>", "")
     comment_text = comment_text.replace("</b>", "")
     comment_text = WrapText(comment_text, 82)  # In case it was already wrapped...
 
-    # TODO(chrsmith): Unescample HTML. e.g. &gt; and &aacute;
-    # TODO(chrsmith): Wrap lines at 80 chars.
     body = "```\n" + comment_text + "\n```"
 
-    # TODO(chris): Include other details, such as label adjustments.
     footer = "\n\nOriginal issue reported on code.google.com by `%s` on %s" % (
         author, TryFormatDate(comment_date))
+
+    # Add label adjustments.
+    if self.GetLabels():
+      labels_added = []
+      labels_removed = []
+      for label in self.GetLabels():
+        if label.startswith("-"):
+          labels_removed.append(label[1:])
+        else:
+          labels_added.append(label)
+
+      footer += "\n"
+      if labels_added:
+        footer += "- **Labels added**: %s\n" % (", ".join(labels_added))
+      if labels_removed:
+        footer += "- **Labels removed**: %s\n" % (", ".join(labels_removed))
 
     # Add references to attachments as appropriate.
     attachmentLines = []
     for attachment in self._comment["attachments"] if "attachments" in self._comment else []:
       if "isDeleted" in attachment:
-        line = " * *Attachment: %s (deleted)*" % (attachment["fileName"])
-        attachmentLines.append(line)
+        # Deleted attachments won't be found on the issue mirror.
         continue
 
       link = "https://storage.googleapis.com/google-code-attachments/%s/issue-%d/comment-%d/%s" % (

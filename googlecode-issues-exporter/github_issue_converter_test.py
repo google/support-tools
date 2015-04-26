@@ -312,9 +312,10 @@ class TestIssueService(unittest.TestCase):
   def testCreateIssue(self):
     issue_body = {
         "body": (
-            "```\none\n```\n\nOriginal issue reported on code.google.com"
-            " by `a_uthor` on last year"),
-        "assignee": "a_uthor",
+            "```\none\n```\n\nOriginal issue reported on code.google.com by `a_uthor` on last year\n"
+            "- **Labels added**: added-label\n"
+            "- **Labels removed**: removed-label\n"),
+        "assignee": "default_username",
         "labels": ["awesome", "great"],
         "title": "issue_title",
     }
@@ -339,7 +340,9 @@ class TestIssueService(unittest.TestCase):
   def testCreateComment(self):
     comment_body = (
         "```\none\n```\n\nOriginal issue reported on code.google.com "
-        "by `a_uthor` on last year")
+        "by `a_uthor` on last year\n"
+        "- **Labels added**: added-label\n"
+        "- **Labels removed**: removed-label\n")
     self.github_issue_service.CreateComment(
         1, "1", SINGLE_COMMENT, GITHUB_REPO)
     self.assertEqual(self.http_mock.last_method, "POST")
