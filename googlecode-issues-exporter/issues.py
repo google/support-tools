@@ -48,7 +48,7 @@ def WrapText(text, max):
   char_list = list(text)
   last_linebreak = 0
   for i in range(0, len(char_list)):
-    if char_list[i] == '\n':
+    if char_list[i] == '\n' or char_list[i] == '\r':
       last_linebreak = i
     if i - last_linebreak > max and char_list[i] == ' ':
       # Replace ' ' with '\n'
