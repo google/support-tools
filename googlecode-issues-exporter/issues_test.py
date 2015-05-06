@@ -56,6 +56,12 @@ COMMENT_THREE = {
     "published": "yesterday",
     "author": {"name": "unknown@example.com"},
 }
+HTML_COMMENT = {
+    "content": "1 &lt; 2",
+    "id": 1,
+    "published": "yesterday",
+    "author": {"name": "unknown@example.com"},
+}
 COMMENTS_DATA = [
     COMMENT_ONE,
     {"content": "two", "id": 2, "published": "last week"},
@@ -81,7 +87,7 @@ ISSUE_JSON = {
 SINGLE_ISSUE = issues.GoogleCodeIssue(ISSUE_JSON, REPO, USER_MAP)
 
 SINGLE_COMMENT = issues.GoogleCodeComment(SINGLE_ISSUE, COMMENT_ONE)
-
+HTML_COMMENT = issues.GoogleCodeComment(SINGLE_ISSUE, HTML_COMMENT)
 
 class GoogleCodeIssueTest(unittest.TestCase):
   """Tests for GoogleCodeIssue."""
@@ -114,6 +120,9 @@ class GoogleCodeIssueTest(unittest.TestCase):
         "- **Labels added**: added-label\n"
         "- **Labels removed**: removed-label\n",
         SINGLE_COMMENT.GetDescription())
+
+  def testGetHtmlCommentDescription(self):
+    self.assertIn("```\n1 < 2\n```", HTML_COMMENT.GetDescription())
 
   def testTryFormatDate(self):
     self.assertEqual("last year", issues.TryFormatDate("last year"))

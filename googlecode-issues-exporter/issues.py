@@ -21,6 +21,8 @@ import json
 import re
 import sys
 
+import HTMLParser
+
 
 class IdentityDict(dict):
   def __missing__(self, key):
@@ -335,9 +337,12 @@ class GoogleCodeComment(object):
     if not comment_text:
       comment_text = "(No text was entered with this change)"
 
+    # Google Takeout includes expected HTML characters such as &gt and &aacute.
+    html_parser = HTMLParser.HTMLParser()
+    comment_text = html_parser.unescape(comment_text)
+
     # Remove <b> tags, which Codesite automatically includes if issue body is
     # based on a prompt.
-    # TODO(chrsmith): Unescample HTML. e.g. &gt; and &aacute;
     comment_text = comment_text.replace("<b>", "")
     comment_text = comment_text.replace("</b>", "")
     comment_text = WrapText(comment_text, 82)  # In case it was already wrapped...
