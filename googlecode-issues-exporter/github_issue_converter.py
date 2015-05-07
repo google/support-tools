@@ -67,7 +67,6 @@ REQUEST_CHECK_TIME = 60 * 5
 COMMENT_DELAY = 2
 
 
-
 def _CheckSuccessful(response):
   """Checks if the request was successful.
 

@@ -621,7 +621,10 @@ class IssueExporter(object):
             "author": "NA",
             "comments": {
                 "items": [{
-                    "id": 1,
+                    "id": 0,
+                    "author": {
+                        "name": "NA",
+                    },
                     "content": "...",
                     "published": "NA"}],
             },
@@ -656,8 +659,8 @@ class IssueExporter(object):
       # If the Google Code JSON dump skipped any issues (e.g. they were deleted)
       # then create placeholder issues so the ID count matches.
       while int(googlecode_issue.GetId()) > int(last_issue_id) + 1:
-        print "\nCreating deleted issue placeholder for #%s\n" % (last_issue_id)
         last_issue_id = self._CreateIssue(DELETED_ISSUE_PLACEHOLDER)
+        print "\nCreating deleted issue placeholder for #%s" % (last_issue_id)
         self._issue_service.CloseIssue(last_issue_id)
 
       # Create the issue on the remote site. Verify that the issue number
