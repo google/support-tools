@@ -235,7 +235,10 @@ class GoogleCodeIssue(object):
     Returns:
       The list of comments attached to the issue
     """
-    return self._issue["comments"]["items"][1:]
+    # The 0th comment is the issue's description. Also, filter out
+    # any deleted comments.
+    comments = self._issue["comments"]["items"][1:]
+    return [c for c in comments if not "deletedBy" in c]
 
   def IsOpen(self):
     """Check if an issue is marked as open.

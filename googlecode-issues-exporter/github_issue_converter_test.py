@@ -510,6 +510,53 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(2, self.issue_exporter._issue_total)
     self.assertEqual(2, self.issue_exporter._issue_number)
 
+  def testStart_SkipDeletedComments(self):
+    comment = {
+        "content": "one",
+        "id": 1,
+        "published": "last year",
+        "author": {"name": "user@email.com"},
+        "updates": {
+            "labels": ["added-label", "-removed-label"],
+            },
+        }
+
+    self.issue_exporter._issue_json_data = [
+        {
+            "id": "1",
+            "number": "1",
+            "title": "Title1",
+            "state": "open",
+            "comments": {
+                "items": [
+                    COMMENT_ONE,
+                    comment,
+                    COMMENT_TWO,
+                    comment],
+            },
+            "labels": ["Type-Issue", "Priority-High"],
+            "owner": {"kind": "projecthosting#issuePerson",
+                      "name": "User1"
+                     },
+        }]
+
+    # Verify the comment data from the test issue references all comments.
+    self.github_service.AddResponse(content={"number": 1})
+    self.issue_exporter.Start()
+    # Remember, the first comment is for the issue.
+    self.assertEqual(3, self.issue_exporter._comment_number)
+    self.assertEqual(3, self.issue_exporter._comment_total)
+
+    # Set the deletedBy information for the comment object, now they
+    # should be ignored by the export.
+    comment["deletedBy"] = {}
+
+    self.github_service.AddResponse(content={"number": 1})
+    self.issue_exporter._previously_created_issues = {}
+    self.issue_exporter.Start()
+    self.assertEqual(1, self.issue_exporter._comment_number)
+    self.assertEqual(1, self.issue_exporter._comment_total)
+
   def testStart_SkipAlreadyCreatedIssues(self):
     self.issue_exporter._previously_created_issues["1"] = {
         "title": "Title1",
