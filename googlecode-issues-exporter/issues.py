@@ -613,6 +613,21 @@ class IssueExporter(object):
     """
     print "Starting issue export for '%s'" % (self._project_name)
 
+    DELETED_ISSUE_PLACEHOLDER = GoogleCodeIssue(
+        {
+            "title": "[Issue Deleted]",
+            "id": -1,
+            "published": "NA",
+            "author": "NA",
+            "comments": {
+                "items": [{
+                    "id": 1,
+                    "content": "...",
+                    "published": "NA"}],
+            },
+        },
+        self._project_name, self._user_map)
+
     # If there are existing issues, then confirm they exactly match the Google
     # Code issues. Otherwise issue IDs will not match and/or there may be
     # missing data.
@@ -621,6 +636,11 @@ class IssueExporter(object):
     self._issue_total = len(self._issue_json_data)
     self._issue_number = 0
     self._skipped_issues = 0
+
+    # ID of the last issue that was posted to the external service. Should
+    # be one less than the current issue to import.
+    last_issue_id = 0
+
     for issue in self._issue_json_data:
       googlecode_issue = GoogleCodeIssue(
           issue, self._project_name, self._user_map)
@@ -628,25 +648,38 @@ class IssueExporter(object):
       self._issue_number += 1
       self._UpdateProgressBar()
 
-      issue_id = googlecode_issue.GetId()
-      if issue_id in self._previously_created_issues:
+      if googlecode_issue.GetId() in self._previously_created_issues:
         self._skipped_issues += 1
+        last_issue_id = googlecode_issue.GetId()
         continue
 
-      issue_number = self._CreateIssue(googlecode_issue)
-      if issue_number < 0:
+      # If the Google Code JSON dump skipped any issues (e.g. they were deleted)
+      # then create placeholder issues so the ID count matches.
+      while int(googlecode_issue.GetId()) > int(last_issue_id) + 1:
+        print "\nCreating deleted issue placeholder for #%s\n" % (last_issue_id)
+        last_issue_id = self._CreateIssue(DELETED_ISSUE_PLACEHOLDER)
+        self._issue_service.CloseIssue(last_issue_id)
+
+      # Create the issue on the remote site. Verify that the issue number
+      # matches. Otherwise the counts will be off. e.g. a new GitHub issue
+      # was created during the export, so Google Code issue 100 refers to
+      # GitHub issue 101, and so on.
+      last_issue_id = self._CreateIssue(googlecode_issue)
+      if last_issue_id < 0:
         continue
-      if int(issue_number) != int(googlecode_issue.GetId()):
-        raise RuntimeError("Google Code and GitHub issue nos mismatch at #%s (got %s)" % (
-            googlecode_issue.GetId(), issue_number))
+      if int(last_issue_id) != int(googlecode_issue.GetId()):
+        error_message = (
+            "Google Code and GitHub issue numbers mismatch. Created\n"
+            "Google Code issue #%s, but it was saved as issue #%s." % (
+                googlecode_issue.GetId(), last_issue_id))
+        raise RuntimeError(error_message)
 
       comments = googlecode_issue.GetComments()
-      self._CreateComments(comments, issue_number, googlecode_issue)
+      self._CreateComments(comments, last_issue_id, googlecode_issue)
 
       if not googlecode_issue.IsOpen():
-        self._issue_service.CloseIssue(issue_number)
+        self._issue_service.CloseIssue(last_issue_id)
 
-    # TODO(chrsmith): Issue a warning if/when the issue ID get out of sync.
     if self._skipped_issues > 0:
       print ("\nSkipped %d/%d issue previously uploaded." %
              (self._skipped_issues, self._issue_total))
@@ -692,7 +725,7 @@ class IssueExporter(object):
     # Check comments. Add any missing ones as needed.
     num_gc_issue_comments = len(last_gc_issue.GetComments())
     if last_gh_issue["comment_count"] != num_gc_issue_comments:
-      print "GitHub issue has fewer comments than Google Code's. Fixng..."
+      print "GitHub issue has fewer comments than Google Code's. Fixing..."
       for idx in range(last_gh_issue["comment_count"], num_gc_issue_comments):
         comment = last_gc_issue.GetComments()[idx]
         googlecode_comment = GoogleCodeComment(last_gc_issue, comment)

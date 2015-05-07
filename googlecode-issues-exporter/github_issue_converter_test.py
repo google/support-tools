@@ -490,6 +490,26 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(1, self.issue_exporter._comment_number)
     self.assertEqual(1, self.issue_exporter._comment_total)
 
+  def testStart_CreateDeletedIssues(self):
+    """Tests creating placeholder issues for gaps in the Google Code data."""
+    # Omit issue #2 from the JSON dump.
+    self.issue_exporter._issue_json_data = [
+        self.TEST_ISSUE_DATA[0], self.TEST_ISSUE_DATA[2]]
+
+    # Note: Some responses are from CreateIssues, others are from CreateComment.
+    self.github_service.AddResponse(content={"number": 1})
+    self.github_service.AddResponse(content={"number": 10})
+    self.github_service.AddResponse(content={"number": 11})
+    self.github_service.AddResponse(content={"number": 2})
+    self.github_service.AddResponse(content={"number": 20})
+    self.github_service.AddResponse(content={"number": 3})
+    self.github_service.AddResponse(content={"number": 30})
+
+    self.issue_exporter.Start()
+
+    self.assertEqual(2, self.issue_exporter._issue_total)
+    self.assertEqual(2, self.issue_exporter._issue_number)
+
   def testStart_SkipAlreadyCreatedIssues(self):
     self.issue_exporter._previously_created_issues["1"] = {
         "title": "Title1",
@@ -522,7 +542,6 @@ class TestIssueExporter(unittest.TestCase):
     self.github_service.AddResponse(content={"number": 2})
     self.github_service.AddResponse(content={"number": 20})
     self.github_service.AddResponse(content={"number": 3})
-    self.github_service.AddResponse(content={"number": 30})
 
     self.issue_exporter.Start()
     self.assertEqual(1, self.issue_exporter._skipped_issues)
