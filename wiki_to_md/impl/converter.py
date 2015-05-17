@@ -170,8 +170,7 @@ class Converter(object):
         The new value of input_line after processing.
     """
     for line in input_lines[input_line - 1:]:
-      whitespace_match = constants.WHITESPACE_RE.match(line)
-      if not whitespace_match:
+      if line.strip():
         # Skipped all the whitespace.
         break
 

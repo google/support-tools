@@ -1,3 +1,5 @@
+> <- leading whitespace shouldn't be ignored.
+
 # Header1
 
 This is a test file for verifying the tool's output. You can regenerate
