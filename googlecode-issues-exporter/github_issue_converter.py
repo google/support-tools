@@ -62,9 +62,9 @@ MAX_HTTP_REQUESTS = 3
 # available.
 REQUEST_CHECK_TIME = 60 * 5
 # A real kludge. GitHub orders the comments based on time alone, and because
-# we upload ours relatively quickly we need at least a second in between
-# comments to keep them in chronological order.
-COMMENT_DELAY = 2
+# we upload ours relatively quickly we to delay between posting new comments
+# in order to keep them in chronological order.
+COMMENT_DELAY = 0.5
 
 
 def _CheckSuccessful(response):
