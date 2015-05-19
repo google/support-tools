@@ -366,15 +366,12 @@ class IssueService(issues.IssueService):
       raise issues.ServiceError("\nFailed to close issue #%s.\n%s" % (
           issue_number, content))
 
-  def CreateComment(self, issue_number, source_issue_id,
-                    googlecode_comment, project_name):
+  def CreateComment(self, issue_number, googlecode_comment):
     """Creates a comment on a GitHub issue.
 
     Args:
-      issue_number: The issue number.
-      source_issue_id: The Google Code issue id.
+      issue_number: The issue number on GitHub to post to.
       googlecode_comment: A GoogleCodeComment instance.
-      project_name: The Google Code project name.
 
     Raises:
       issues.ServiceError: An error occurred creating the comment.

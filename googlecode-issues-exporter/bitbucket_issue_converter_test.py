@@ -102,7 +102,7 @@ class TestIssueService(unittest.TestCase):
         "user": "a_uthor",
     }
     self._bitbucket_issue_service.CreateComment(
-        1, "1", SINGLE_COMMENT, BITBUCKET_REPO)
+        1, SINGLE_COMMENT)
     actual = self._bitbucket_issue_service._bitbucket_comments[0]
     self.assertEqual(comment_body, actual)
 
