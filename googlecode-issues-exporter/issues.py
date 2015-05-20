@@ -645,7 +645,7 @@ class IssueExporter(object):
                 googlecode_issue, comment_data)
             self._issue_service.CreateComment(
                 existing_issue["id"], googlecode_comment)
-            print "  Added missing comment #%d" % idx
+            print "  Added missing comment #%d" % (idx + 1)
 
         continue
 
