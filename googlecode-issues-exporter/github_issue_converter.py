@@ -61,9 +61,9 @@ MAX_HTTP_REQUESTS = 3
 # The time (in seconds) to wait before trying to see if more requests are
 # available.
 REQUEST_CHECK_TIME = 60 * 5
-# A real kludge. GitHub orders the comments based on time alone, and because
-# we upload ours relatively quickly we to delay between posting new comments
-# in order to keep them in chronological order.
+# GitHub orders the comments based on time alone, and because we upload ours
+# relatively quickly we need a delay to keep things being posted in
+# chronological order.
 COMMENT_DELAY = 0.5
 
 
@@ -366,15 +366,12 @@ class IssueService(issues.IssueService):
       raise issues.ServiceError("\nFailed to close issue #%s.\n%s" % (
           issue_number, content))
 
-  def CreateComment(self, issue_number, source_issue_id,
-                    googlecode_comment, project_name):
+  def CreateComment(self, issue_number, googlecode_comment):
     """Creates a comment on a GitHub issue.
 
     Args:
-      issue_number: The issue number.
-      source_issue_id: The Google Code issue id.
+      issue_number: The issue number on GitHub to post to.
       googlecode_comment: A GoogleCodeComment instance.
-      project_name: The Google Code project name.
 
     Raises:
       issues.ServiceError: An error occurred creating the comment.

@@ -135,15 +135,12 @@ class IssueService(issues.IssueService):
       issue_number: The issue number.
     """
 
-  def CreateComment(self, issue_number, source_issue_id,
-                    googlecode_comment, project_name):
+  def CreateComment(self, issue_number, googlecode_comment):
     """Creates a comment on an issue.
 
     Args:
       issue_number: The issue number.
-      source_issue_id: The Google Code issue id.
       googlecode_comment: An instance of GoogleCodeComment
-      project_name: The Google Code project name.
     """
     bitbucket_comment = {
         "content": googlecode_comment.GetDescription(),
