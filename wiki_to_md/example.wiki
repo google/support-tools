@@ -299,3 +299,7 @@ We were adding extra spaces around tick marks:
 
 alpha `beta` gamma
 
+Unicode hyperlinks:
+
+We should handle this: [http://google.com Dé Dé]
+
