@@ -14,13 +14,19 @@
 
 """Wrappers around the GitHub APIs."""
 
+import collections
+import httplib
+import json
+import urlparse
 import argparse
 import json
 import sys
 import time
 import urllib
 
+import httplib
 import httplib2
+
 import issues
 
 # The URL used for calls to GitHub.
@@ -188,6 +194,145 @@ class GitHubService(object):
       time.sleep(REQUEST_CHECK_TIME)
       if not self._RequestLimitReached():
         return
+
+
+class FakeGitHubService(GitHubService):
+  """A fake of the GitHubService.
+
+  This also allows for queueing of responses and there content into a reponse
+  queue. For example if you wanted a successful response and then a failure you
+  would call AddSuccessfulResponse and then AddFailureResponse. Then when a call
+  to _PerformHttpRequest is made the succesful response is made.  The next call
+  would then return the failed response.
+
+  If no responses are in the queue a succesful request with no content is
+  returned.
+
+  Attributes:
+      github_owner_username: The username of the owner of the repository.
+      github_repo_name: The GitHub repository name.
+      github_oauth_token: The oauth token to use for the requests.
+  """
+
+  # pylint: disable=super-init-not-called
+  def __init__(self, github_owner_username, github_repo_name,
+               github_oauth_token):
+    """Initialize the FakeGitHubService.
+
+    Args:
+      github_owner_username: The username of the owner of the repository.
+      github_repo_name: The GitHub repository name.
+      github_oauth_token: The oauth token to use for the requests.
+
+    """
+    self.github_owner_username = github_owner_username
+    self.github_repo_name = github_repo_name
+    self._github_oauth_token = github_oauth_token
+    self._action_queue = collections.deque([])
+
+  def AddSuccessfulResponse(self, content=None):
+    """Adds a succesfull response with no content to the reponse queue."""
+    self.AddResponse(content=content)
+
+  def AddFailureResponse(self):
+    """Adds a failed response with no content to the reponse queue."""
+    self.AddResponse(httplib.BAD_REQUEST)
+
+  def AddResponse(self, response=httplib.OK, content=None):
+    status = {"status": response}
+    full_response = {}
+    full_response["status"] = status
+    full_response["content"] = content if content else {}
+    self._action_queue.append(full_response)
+
+  def _PerformHttpRequest(self, method, url, body="{}", params=None):
+    if not self._action_queue:
+      return {"status": httplib.OK}, {}
+
+    full_response = self._action_queue.popleft()
+    return (full_response["status"], full_response["content"])
+
+  def PerformGetRequest(self, url, params=None):
+    """Makes a fake GET request.
+
+    Args:
+      url: The URL to make the call to.
+      params: A dictionary of parameters to be used in the http call.
+
+    Returns:
+      A tuple of a fake response and fake content.
+    """
+    return self._PerformHttpRequest("GET", url, params=params)
+
+  def PerformPostRequest(self, url, body):
+    """Makes a POST request.
+
+    Args:
+      url: The URL to make the call to.
+      body: The body of the request.
+
+    Returns:
+      A tuple of a fake response and content
+    """
+    return self._PerformHttpRequest("POST", url, body=body)
+
+  def PerformPatchRequest(self, url, body):
+    """Makes a PATCH request.
+
+    Args:
+      url: The URL to make the call to.
+      body: The body of the request.
+
+    Returns:
+      A tuple of a fake response and content
+    """
+    return self._PerformHttpRequest("PATCH", url, body=body)
+
+
+class Http2Mock(object):
+  """Mock httplib2.Http object.  Only mocks out the request function.
+
+  This mock keeps track of the last url, method and body called.
+
+  Attributes:
+    response_success: Fake successful HTTP response.
+    response_failure: Fake failure HTTP response.
+    response: The response of the next HTTP request.
+    content: The content of the next HTTP request.
+    last_url: The last URL that an HTTP request was made to.
+    last_method: The last method that an HTTP request was made to.
+    last_body: The last body method that an HTTP request was made to.
+
+  """
+  response_success = {"status": httplib.OK}
+  response_failure = {"status": httplib.BAD_REQUEST}
+
+  def __init__(self):
+    """Initialize the Http2Mock."""
+    self.response = self.response_success
+    self.content = {}
+    self.last_headers = None
+    self.last_url = None
+    self.last_method = None
+    self.last_body = None
+
+  def request(self, url, method, headers=None, body=None):
+    """Makes a fake HTTP request.
+
+    Args:
+      url: The url to make the call to.
+      method: The type of call. POST, GET, etc.
+      headers: The HTTP headers for the request.
+      body: The request of the body.
+
+    Returns:
+      A tuple of a response and its content.
+    """
+    self.last_url = url
+    self.last_method = method
+    self.last_headers = headers
+    self.last_body = body
+    return (self.response, json.dumps(self.content))
 
 
 class UserService(issues.UserService):
