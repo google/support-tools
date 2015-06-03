@@ -23,6 +23,7 @@ import unittest
 import urlparse
 
 import github_issue_converter
+import github_services
 import issues
 
 from issues_test import DEFAULT_USERNAME
@@ -47,7 +48,7 @@ GITHUB_TOKEN = "oauth_token"
 GITHUB_API_URL = "https://api.github.com"
 
 
-class FakeGitHubService(github_issue_converter.GitHubService):
+class FakeGitHubService(github_services.GitHubService):
   """A fake of the GitHubService.
 
   This also allows for queueing of responses and there content into a reponse
@@ -191,18 +192,18 @@ class TestGitHubService(unittest.TestCase):
 
   def setUp(self):
     self.http_mock = Http2Mock()
-    self.github_service = github_issue_converter.GitHubService(
+    self.github_service = github_services.GitHubService(
         GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN,
         rate_limit=False,
         http_instance=self.http_mock)
 
   def testSuccessfulRequestSuccess(self):
-    success = github_issue_converter._CheckSuccessful(
+    success = github_services._CheckSuccessful(
         self.http_mock.response_success)
     self.assertTrue(success)
 
   def testSuccessfulRequestFailure(self):
-    failure = github_issue_converter._CheckSuccessful(
+    failure = github_services._CheckSuccessful(
         self.http_mock.response_failure)
     self.assertFalse(failure)
 
@@ -287,7 +288,7 @@ class TestUserService(unittest.TestCase):
     self.github_service = FakeGitHubService(GITHUB_USERNAME,
                                             GITHUB_REPO,
                                             GITHUB_TOKEN)
-    self.github_user_service = github_issue_converter.UserService(
+    self.github_user_service = github_services.UserService(
         self.github_service)
 
   def testIsUserTrue(self):
@@ -305,11 +306,11 @@ class TestIssueService(unittest.TestCase):
 
   def setUp(self):
     self.http_mock = Http2Mock()
-    self.github_service = github_issue_converter.GitHubService(
+    self.github_service = github_services.GitHubService(
         GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN,
         rate_limit=False,
         http_instance=self.http_mock)
-    self.github_issue_service = github_issue_converter.IssueService(
+    self.github_issue_service = github_services.IssueService(
         self.github_service, comment_delay=0)
 
   def testCreateIssue(self):
@@ -364,7 +365,7 @@ class TestIssueService(unittest.TestCase):
     fake_github_service = FakeGitHubService(GITHUB_USERNAME,
                                             GITHUB_REPO,
                                             GITHUB_TOKEN)
-    github_issue_service = github_issue_converter.IssueService(
+    github_issue_service = github_services.IssueService(
         fake_github_service, comment_delay=0)
     fake_github_service.AddFailureResponse()
     with self.assertRaises(IOError):
@@ -378,9 +379,9 @@ class TestIssueExporter(unittest.TestCase):
     self.github_service = FakeGitHubService(GITHUB_USERNAME,
                                             GITHUB_REPO,
                                             GITHUB_TOKEN)
-    self.github_user_service = github_issue_converter.UserService(
+    self.github_user_service = github_services.UserService(
         self.github_service)
-    self.github_issue_service = github_issue_converter.IssueService(
+    self.github_issue_service = github_services.IssueService(
         self.github_service, comment_delay=0)
     self.issue_exporter = issues.IssueExporter(
         self.github_issue_service, self.github_user_service,
