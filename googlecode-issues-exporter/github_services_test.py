@@ -16,25 +16,15 @@
 
 # pylint: disable=missing-docstring,protected-access
 
-import collections
-import httplib
 import json
 import unittest
 import urlparse
 
-import github_issue_converter
 import github_services
-import issues
 
 from issues_test import DEFAULT_USERNAME
 from issues_test import SINGLE_COMMENT
 from issues_test import SINGLE_ISSUE
-from issues_test import COMMENT_ONE
-from issues_test import COMMENT_TWO
-from issues_test import COMMENT_THREE
-from issues_test import COMMENTS_DATA
-from issues_test import NO_ISSUE_DATA
-from issues_test import USER_MAP
 from issues_test import REPO
 
 # The GitHub username.

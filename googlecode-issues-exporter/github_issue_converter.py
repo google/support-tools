@@ -45,12 +45,8 @@
 """
 
 import argparse
-import json
 import sys
-import time
-import urllib
 
-import httplib2
 import github_services
 import issues
 

@@ -9,7 +9,7 @@
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=invalid-name,too-few-public-methods,too-many-arguments,no-self-use,too-many-locals,too-many-instance-attributes,abstract-class-little-used,duplicate-code,too-many-public-methods,locally-disabled
+disable=invalid-name,too-few-public-methods,too-many-arguments,no-self-use,too-many-locals,too-many-instance-attributes,abstract-class-little-used,duplicate-code,too-many-public-methods,locally-disabled,relative-import
 
 [FORMAT]
 indent-string='  '

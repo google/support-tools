@@ -15,10 +15,6 @@
 """Wrappers around the GitHub APIs."""
 
 import collections
-import httplib
-import json
-import urlparse
-import argparse
 import json
 import sys
 import time
@@ -239,6 +235,7 @@ class FakeGitHubService(GitHubService):
     self.AddResponse(httplib.BAD_REQUEST)
 
   def AddResponse(self, response=httplib.OK, content=None):
+    """Adds a response to the response queue."""
     status = {"status": response}
     full_response = {}
     full_response["status"] = status
