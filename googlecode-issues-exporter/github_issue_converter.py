@@ -125,7 +125,7 @@ class GitHubService(object):
       A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
       its content from the server which is decoded JSON.
     """
-    headers = { "User-Agent": "GoogleCodeIssueExporter/1.0" }
+    headers = {"User-Agent": "GoogleCodeIssueExporter/1.0"}
     query = params.copy() if params else {}
     query["access_token"] = self._github_oauth_token
     request_url = "%s%s?%s" % (GITHUB_API_URL, url, urllib.urlencode(query))

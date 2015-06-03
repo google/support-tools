@@ -162,6 +162,7 @@ class Http2Mock(object):
     """Initialize the Http2Mock."""
     self.response = self.response_success
     self.content = {}
+    self.last_headers = None
     self.last_url = None
     self.last_method = None
     self.last_body = None
@@ -172,6 +173,7 @@ class Http2Mock(object):
     Args:
       url: The url to make the call to.
       method: The type of call. POST, GET, etc.
+      headers: The HTTP headers for the request.
       body: The request of the body.
 
     Returns:
@@ -179,6 +181,7 @@ class Http2Mock(object):
     """
     self.last_url = url
     self.last_method = method
+    self.last_headers = headers
     self.last_body = body
     return (self.response, json.dumps(self.content))
 
@@ -312,7 +315,8 @@ class TestIssueService(unittest.TestCase):
   def testCreateIssue(self):
     issue_body = {
         "body": (
-            "```\none\n```\n\nOriginal issue reported on code.google.com by `a_uthor` on last year\n"
+            "```\none\n```\n\nOriginal issue reported on code.google.com by"
+            " `a_uthor` on last year\n"
             "- **Labels added**: added-label\n"
             "- **Labels removed**: removed-label\n"),
         "assignee": "default_username",
@@ -431,9 +435,11 @@ class TestIssueExporter(unittest.TestCase):
     self.github_service.AddResponse(content=content)
     self.issue_exporter._GetAllPreviousIssues()
     self.assertEqual(1, len(self.issue_exporter._previously_created_issues))
-    self.assertTrue("issue_title" in self.issue_exporter._previously_created_issues)
+    self.assertTrue(
+        "issue_title" in self.issue_exporter._previously_created_issues)
 
-    previous_issue = self.issue_exporter._previously_created_issues["issue_title"]
+    previous_issue = (
+        self.issue_exporter._previously_created_issues["issue_title"])
     self.assertEqual(1, previous_issue["id"])
     self.assertEqual("issue_title", previous_issue["title"])
     self.assertEqual(2, previous_issue["comment_count"])
