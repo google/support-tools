@@ -15,33 +15,11 @@
 """Tool for uploading Google Code issues to GitHub.
 
   Issue migration from Google Code to GitHub.
-  This tools allows you to easily move your downloaded Google Code issues to
+  This tools allows you to easily migrate your downloaded Google Code issues to
   GitHub.
 
-  To use this tool:
-  1. Follow the instructions at https://code.google.com/p/support-tools/ to
-     download your issues from Google.
-  2. Go to https://github.com/settings/applications and create a new "Personal
-     Access Token".
-  3. Get the GitHub username of the owner of the repository and the repositories
-     name you wish to add the issues to. For example username: TheDoctor and
-     repository: SonicScrewdriver
-  4. (Optional) If this option is skipped all issues will be assigned to the
-     owner of the repo.  Make a file that contains a mapping from the Google
-     Code email address to the GitHub username for each user you wish to assign
-     issues too.  The file should be newline seperated with one user per line.
-     The email address and username should be colon (':') seperated. For example
-     a file may look like this:
-       <Google Code Email>:<GitHub Username>
-       myemail@gmail.com:coolperson
-       otheruser@gmail.com:userother
-  5. Then run the command:
-       python ./issue_migration.py \
-         --github_oauth_token=<oauth-token> \
-         --github_owner_username=<your-github-username> \
-         --github_repo_name=<repository-name> \
-         --issue_file_path=<path-to-issue-file> \
-         --user_file_path="<optional-path-to-user-mapping-file>"
+  To use this tool see the documentation available at:
+  https://code.google.com/p/support-tools/wiki/IssueExporterTool
 """
 
 import argparse
@@ -53,8 +31,7 @@ import issues
 
 def ExportIssues(github_owner_username, github_repo_name, github_oauth_token,
                  issue_file_path, project_name, user_file_path, rate_limit):
-  """Exports all issues for a given project.
-  """
+  """Exports all issues for a given project."""
   github_service = github_services.GitHubService(
       github_owner_username, github_repo_name, github_oauth_token,
       rate_limit)
