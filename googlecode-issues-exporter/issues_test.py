@@ -95,13 +95,13 @@ class GoogleCodeIssueTest(unittest.TestCase):
   def testGetIssueOwner(self):
     # Report all issues coming from the person who initiated the
     # export.
-    self.assertEqual("default_username", SINGLE_ISSUE.GetOwner())
+    self.assertEqual(DEFAULT_USERNAME, SINGLE_ISSUE.GetOwner())
 
   def testGetIssueOwnerNoOwner(self):
     issue_json = ISSUE_JSON.copy()
     del issue_json["owner"]
     issue = issues.GoogleCodeIssue(issue_json, REPO, USER_MAP)
-    self.assertEqual("default_username", issue.GetOwner())
+    self.assertEqual(DEFAULT_USERNAME, issue.GetOwner())
 
   def testGetIssueUserOwner(self):
     issue_json = copy.deepcopy(ISSUE_JSON)
@@ -120,6 +120,68 @@ class GoogleCodeIssueTest(unittest.TestCase):
         "- **Labels added**: added-label\n"
         "- **Labels removed**: removed-label\n",
         SINGLE_COMMENT.GetDescription())
+
+  # TODO(chris): Test GetCommentDescription for something with attachments.
+  def testGetCommentDescription_BlockingBlockedOn(self):
+    blocking_data = {
+        "content": "???",
+        "id": 1,
+        "published": "last year",
+        "author": {"name": "user@email.com"},
+        "updates": {
+            "blocking": ["projA:1", "projB:2", "projB:3"],
+            "blockedOn": ["projA:1"],
+            },
+    }
+    blocking_comment = issues.GoogleCodeComment(SINGLE_ISSUE, blocking_data)
+
+    self.assertEqual(
+        "```\n???\n```\n\nOriginal issue reported on code.google.com by "
+        "`a_uthor` on last year\n"
+        "- **Blocking**: #1, #2, #3\n"
+        "- **Blocked On**: #1\n",
+        blocking_comment.GetDescription())
+
+  def testGetCommentDescription_BlockingBlockedOn_Issue(self):
+    # The way issues store blocking/blockedOn is different.
+    issue_json = {
+        "comments" : {
+            "items" : [ {
+                "id" : 0,
+                "author" : {
+                  "name" : "<comment-author>",
+                },
+                "content" : "<comment-content>",
+                "published": "<comment-published>",
+            }, ],
+        },
+        "published": "<issue-published>",
+        "blocking" : [ {
+              "projectId" : "issue-export-test",
+              "issueId" : 10
+            },
+            {
+              "projectId" : "issue-export-test",
+              "issueId" : 11
+            } ],
+        "blockedOn" : [ {
+              "projectId" : "issue-export-test",
+              "issueId" : 20
+            },
+            {
+              "projectId" : "issue-export-test",
+              "issueId" : 21
+            } ],
+
+    }
+    blocking_issue = issues.GoogleCodeIssue(issue_json, REPO, USER_MAP)
+
+    self.assertEqual(
+        "```\n<comment-content>\n```\n\nOriginal issue reported on code.google.com by "
+        "`default_username` on <comment-published>\n"
+        "- **Blocking**: #10, #11\n"
+        "- **Blocked On**: #20, #21\n",
+        blocking_issue.GetDescription())
 
   def testGetHtmlCommentDescription(self):
     self.assertIn("```\n1 < 2\n```", HTML_COMMENT.GetDescription())

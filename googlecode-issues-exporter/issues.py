@@ -221,14 +221,6 @@ class GoogleCodeIssue(object):
     """
     return self.GetCreatedOn()
 
-  def _GetDescription(self):
-    """Returns the raw description of the issue.
-
-    Returns:
-      The raw issue description as a comment.
-    """
-    return self._issue["comments"]["items"][0]
-
   def GetComments(self):
     """Get the list of comments for the issue (if any).
 
@@ -250,8 +242,27 @@ class GoogleCodeIssue(object):
 
   def GetDescription(self):
     """Returns the Description of the issue."""
-    # Just return the description of the underlying comment.
-    googlecode_comment = GoogleCodeComment(self, self._GetDescription())
+    # Just return the description of the underlying comment. However,
+    # we fudge a few things since metadata is stored differently for
+    # "the issue" (i.e. comment #0) and other comments.
+    comment_0_data = self._issue["comments"]["items"][0]
+    if "updates" not in comment_0_data:
+      comment_0_data["updates"] = {}
+    # blocking
+    if "blocking" in self._issue:
+      assert "blocking" not in comment_0_data["updates"]
+      comment_0_data["updates"]["blocking"] = []
+      for blocking_issue in self._issue["blocking"]:
+        issue_ref = blocking_issue["projectId"] + ":" + str(blocking_issue["issueId"])
+        comment_0_data["updates"]["blocking"].append(issue_ref)
+    if "blockedOn" in self._issue:
+      assert "blockedOn" not in comment_0_data["updates"]
+      comment_0_data["updates"]["blockedOn"] = []
+      for blocking_issue in self._issue["blockedOn"]:
+        issue_ref = blocking_issue["projectId"] + ":" + str(blocking_issue["issueId"])
+        comment_0_data["updates"]["blockedOn"].append(issue_ref)
+
+    googlecode_comment = GoogleCodeComment(self, comment_0_data)
     return googlecode_comment.GetDescription()
 
 
@@ -352,18 +363,21 @@ class GoogleCodeComment(object):
 
     body = "```\n" + comment_text + "\n```"
 
-    footer = "\n\nOriginal issue reported on code.google.com by `%s` on %s" % (
+    footer = "\n\nOriginal issue reported on code.google.com by `%s` on %s\n" % (
         author, TryFormatDate(comment_date))
 
-    # Add label adjustments.
     footer += self._GetLabelInfo()
+    footer += self._GetLinksToOtherIssues()
     # Add references to attachments as appropriate. (Do this last since it
     # inserts a horizontal rule.)
     footer += self._GetAttachmentInfo()
+
+    # TODO(chris): Rewrite text to map "issue #x" to the GitHub IDs. See:
+    # https://code.google.com/p/support-tools/issues/detail?id=94
     return body + footer
 
   def _GetLabelInfo(self):
-    """Returns Markdown info for a comment's labels as appropriate."""
+    """Returns Markdown text for a comment's labels as appropriate."""
     if not self.GetLabels():
       return ""
 
@@ -380,10 +394,31 @@ class GoogleCodeComment(object):
       label_info += "- **Labels added**: %s\n" % (", ".join(labels_added))
     if labels_removed:
       label_info += "- **Labels removed**: %s\n" % (", ".join(labels_removed))
-    return "\n" + label_info if label_info else ""
+    return label_info
+
+  def _GetLinksToOtherIssues(self):
+    """Returns Markdown text for a comment's links to other issues."""
+    if "updates" not in self._comment:
+      return ""
+
+    # [ "issue-export-test:7" ] => [ "7" ]
+    # NOTE: We don't support cross-project issue references. Rather we
+    # just assume the issue reference is within the same project.
+    def getIssueIds(issue_ref_list):
+      return [proj.split(":")[1] for proj in issue_ref_list]
+
+    ref_info = ""
+    if "blocking" in self._comment["updates"]:
+      issue_ids = getIssueIds(self._comment["updates"]["blocking"])
+      ref_info += "- **Blocking**: #" + ", #".join(issue_ids) + "\n"
+    if "blockedOn" in self._comment["updates"]:
+      issue_ids = getIssueIds(self._comment["updates"]["blockedOn"])
+      ref_info += "- **Blocked On**: #" + ", #".join(issue_ids) + "\n"
+
+    return ref_info
 
   def _GetAttachmentInfo(self):
-    """Returns Markdown info for a comment's attachments as appropriate."""
+    """Returns Markdown text for a comment's attachments as appropriate."""
     attachmentLines = []
 
     attachments = self._comment["attachments"] if "attachments" in self._comment else []
