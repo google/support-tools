@@ -410,13 +410,13 @@ class IssueService(object):
   """
 
   def GetIssues(self, state="open"):
-    """Gets all of the issue for the repository.
+    """Gets all of the issue for the repository with the given state.
 
     Args:
       state: The state of the repository can be either 'open' or 'closed'.
 
     Returns:
-      The list of all of the issues for the given repository.
+      The list of all of the issues with the given state.
 
     Raises:
       IOError: An error occurred accessing previously created issues.
