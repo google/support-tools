@@ -356,24 +356,38 @@ class GoogleCodeComment(object):
         author, TryFormatDate(comment_date))
 
     # Add label adjustments.
-    if self.GetLabels():
-      labels_added = []
-      labels_removed = []
-      for label in self.GetLabels():
-        if label.startswith("-"):
-          labels_removed.append(label[1:])
-        else:
-          labels_added.append(label)
+    footer += self._GetLabelInfo()
+    # Add references to attachments as appropriate. (Do this last since it
+    # inserts a horizontal rule.)
+    footer += self._GetAttachmentInfo()
+    return body + footer
 
-      footer += "\n"
-      if labels_added:
-        footer += "- **Labels added**: %s\n" % (", ".join(labels_added))
-      if labels_removed:
-        footer += "- **Labels removed**: %s\n" % (", ".join(labels_removed))
+  def _GetLabelInfo(self):
+    """Returns Markdown info for a comment's labels as appropriate."""
+    if not self.GetLabels():
+      return ""
 
-    # Add references to attachments as appropriate.
+    labels_added = []
+    labels_removed = []
+    for label in self.GetLabels():
+      if label.startswith("-"):
+        labels_removed.append(label[1:])
+      else:
+        labels_added.append(label)
+
+    label_info = ""
+    if labels_added:
+      label_info += "- **Labels added**: %s\n" % (", ".join(labels_added))
+    if labels_removed:
+      label_info += "- **Labels removed**: %s\n" % (", ".join(labels_removed))
+    return "\n" + label_info if label_info else ""
+
+  def _GetAttachmentInfo(self):
+    """Returns Markdown info for a comment's attachments as appropriate."""
     attachmentLines = []
-    for attachment in self._comment["attachments"] if "attachments" in self._comment else []:
+
+    attachments = self._comment["attachments"] if "attachments" in self._comment else []
+    for attachment in attachments:
       if "isDeleted" in attachment:
         # Deleted attachments won't be found on the issue mirror.
         continue
@@ -397,10 +411,8 @@ class GoogleCodeComment(object):
       attachmentLines.append(line)
 
     if len(attachmentLines) > 0:
-      footer += "\n<hr>\n" + "\n".join(attachmentLines)
-
-    # Return the data to send to generate the comment.
-    return body + footer
+      return "\n<hr>\n" + "\n".join(attachmentLines)
+    return ""
 
 
 class IssueService(object):
