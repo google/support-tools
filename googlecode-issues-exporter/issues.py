@@ -374,10 +374,10 @@ class GoogleCodeComment(object):
         author, TryFormatDate(comment_date))
 
     if "status" in comment_updates:
-      footer += "- Status changed to `%s`.\n" % (comment_updates["status"])
+      footer += "- **Status changed:** `%s`.\n" % (comment_updates["status"])
     footer += self._GetLabelInfo()
     footer += self._GetLinksToOtherIssues()
-    if "mergedInto" in comment_updates:
+    if "mergedInto" in comment_updates and comment_updates["mergedInto"]:
       footer += "- **Merged into**: #%s\n" % (
           comment_updates["mergedInto"])
 
