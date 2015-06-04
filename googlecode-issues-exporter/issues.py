@@ -675,58 +675,60 @@ class IssueExporter(object):
     def IssueRefToString(issue_ref):
       return issue_ref["projectId"] + ":" + str(issue_ref["issueId"])
 
-    # Build up the summary blocking/blocked-on data.
-    blocking = []
-    blockedon = []
-    if "blocking" in issue_json:
-      for blocking_issue in issue_json["blocking"]:
-        blocking.append(IssueRefToString(blocking_issue))
-    if "blockedOn" in issue_json:
-      for blockedon_issue in issue_json["blockedOn"]:
-        blockedon.append(IssueRefToString(blockedon_issue))
+    def GetUnionReferences(kind_name):
+      """The initial issue reference IDs."""
+      references = []
+      if kind_name in issue_json:
+        for reference in issue_json[kind_name]:
+          references.append(IssueRefToString(reference))
+      references, _ = _ParseIssueReferences(references)
+      return references
 
-    blocking, _ = _ParseIssueReferences(blocking)
-    blockedon, _ = _ParseIssueReferences(blockedon)
+    def DesiredReferences(union_references, kind_name):
+      """Returns the desired references on commeng #0 for the kind."""
+      current_list = []  # List of references as we simulate the comments.
+      desired_list = union_references[:]  # The desired list to output.
+      issue_comments = issue_json["comments"]["items"]
+      for comment in issue_comments:
+        if "updates" not in comment:
+          continue
+        updates = comment["updates"]
+        if kind_name in updates:
+          added, removed = _ParseIssueReferences(updates[kind_name])
+          # If the reference was added in this comment, we don't need
+          # to add it to comment #0 since you'll "see" the addition.
+          for added_ref in added:
+            current_list.append(added_ref)
+            if added_ref in union_references:
+              desired_list.remove(added_ref)
+          # If the reference was removed in this comment AND it wasn't
+          # previously added by a comment, then we should add it to the
+          # output list. (We infer the issue was created with it.)
+          for removed_ref in removed:
+            if removed_ref not in union_references and (
+                removed_ref not in current_list):
+              desired_list.append(removed_ref)
+      return desired_list
 
-    # Go through updates made via comments.
-    issue_comments = issue_json["comments"]["items"]
-    for comment in issue_comments:
-      if "updates" not in comment:
-        continue
-      updates = comment["updates"]
-      if "blocking" in updates:
-        added, removed = _ParseIssueReferences(updates["blocking"])
-        for added_blocking in added:
-          if added_blocking in blocking:
-            blocking.remove(added_blocking)
-        for removed_blocking in removed:
-           if removed_blocking not in blocking:
-             blocking.append(removed_blocking)
-      if "blockedOn" in updates:
-        added, removed = _ParseIssueReferences(updates["blockedOn"])
-        for added_blockedon in added:
-          if added_blockedon in blockedon:
-            blockedon.remove(added_blockedon)
-        for removed_blockedon in removed:
-          if removed_blockedon not in blockedon:
-            blockedon.append(removed_blockedon)
-
-    # Insert blocking/blocked-on into comment #0 as necessary.
-    if blocking or blockedon:
+    def AddToComment0(issue_references, kind_name):
+      if not issue_references:
+        return
       comment_0_data = issue_json["comments"]["items"][0]
       if "updates" not in comment_0_data:
         comment_0_data["updates"] = {}
       comment_0_updates = comment_0_data["updates"]
-      if blocking:
-        if "blocking" not in comment_0_updates:
-          comment_0_updates["blocking"] = []
-        comment_0_updates["blocking"].extend(
-            ["???:" + iid for iid in blocking])
-      if blockedon:
-        if "blockedOn" not in comment_0_updates:
-          comment_0_updates["blockedOn"] = []
-        comment_0_updates["blockedOn"].extend(
-            ["???:" + iid for iid in blockedon])
+      if kind_name not in comment_0_updates:
+        comment_0_updates[kind_name] = []
+      comment_0_updates[kind_name].extend(
+          ["???:" + iid for iid in issue_references])
+
+    starting_blocking = GetUnionReferences("blocking")
+    desired_blocking = DesiredReferences(starting_blocking, "blocking")
+    AddToComment0(desired_blocking, "blocking")
+
+    starting_blockedon = GetUnionReferences("blockedOn")
+    desired_blockedon = DesiredReferences(starting_blockedon, "blockedOn")
+    AddToComment0(desired_blockedon, "blockedOn")
 
     return issue_json
 
