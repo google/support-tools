@@ -348,22 +348,22 @@ class GoogleCodeComment(object):
     comment_date = self.GetCreatedOn()
     comment_text = self.GetContent()
 
-    if not comment_text:
-      comment_text = "(No text was entered with this change)"
+    body = ""
+    if comment_text:
+      # Google Takeout includes escaped HTML such as &gt and &aacute.
+      html_parser = HTMLParser.HTMLParser()
+      comment_text = html_parser.unescape(comment_text)
 
-    # Google Takeout includes expected HTML characters such as &gt and &aacute.
-    html_parser = HTMLParser.HTMLParser()
-    comment_text = html_parser.unescape(comment_text)
+      # Remove <b> tags, which Codesite automatically includes if issue body
+      # is based on a prompt.
+      comment_text = comment_text.replace("<b>", "")
+      comment_text = comment_text.replace("</b>", "")
+      # 82 instead of 80 in case it was already wrapped...
+      comment_text = WrapText(comment_text, 82)
 
-    # Remove <b> tags, which Codesite automatically includes if issue body is
-    # based on a prompt.
-    comment_text = comment_text.replace("<b>", "")
-    comment_text = comment_text.replace("</b>", "")
-    comment_text = WrapText(comment_text, 82)  # In case it was already wrapped...
+      body += "```\n" + comment_text + "\n```\n\n"
 
-    body = "```\n" + comment_text + "\n```"
-
-    footer = "\n\nOriginal issue reported on code.google.com by `%s` on %s\n" % (
+    footer = "Original issue reported on code.google.com by `%s` on %s\n" % (
         author, TryFormatDate(comment_date))
 
     footer += self._GetLabelInfo()
