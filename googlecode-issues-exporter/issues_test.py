@@ -129,8 +129,8 @@ class GoogleCodeIssueTest(unittest.TestCase):
         "published": "last year",
         "author": {"name": "user@email.com"},
         "updates": {
-            "blocking": ["projA:1", "projB:2", "projB:3"],
-            "blockedOn": ["projA:1"],
+            "blocking": ["projA:1", "projB:2", "-projB:3"],
+            "blockedOn": ["projA:1", "-projA:1"],
             },
     }
     blocking_comment = issues.GoogleCodeComment(SINGLE_ISSUE, blocking_data)
@@ -138,8 +138,10 @@ class GoogleCodeIssueTest(unittest.TestCase):
     self.assertEqual(
         "```\n???\n```\n\nOriginal issue reported on code.google.com by "
         "`a_uthor` on last year\n"
-        "- **Blocking**: #1, #2, #3\n"
-        "- **Blocked On**: #1\n",
+        "- **Blocking**: #1, #2\n"
+        "- **No longer blocking**: #3\n"
+        "- **Blocked on**: #1\n"
+        "- **No longer blocked on**: #1\n",
         blocking_comment.GetDescription())
 
   def testGetCommentDescription_BlockingBlockedOn_Issue(self):
@@ -180,7 +182,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
         "```\n<comment-content>\n```\n\nOriginal issue reported on code.google.com by "
         "`default_username` on <comment-published>\n"
         "- **Blocking**: #10, #11\n"
-        "- **Blocked On**: #20, #21\n",
+        "- **Blocked on**: #20, #21\n",
         blocking_issue.GetDescription())
 
   def testGetHtmlCommentDescription(self):

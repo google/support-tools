@@ -248,7 +248,12 @@ class GoogleCodeIssue(object):
     comment_0_data = self._issue["comments"]["items"][0]
     if "updates" not in comment_0_data:
       comment_0_data["updates"] = {}
-    # blocking
+
+    # BUG: The issue export contains the union of the initial blocked/blocking
+    # status and all the updates via comments. So you'll see duplicate data
+    # when processing those coments, but we include it anyways because
+    # otherwise you'll miss the blocking/blockedOn if it ONLY was in the
+    # initial issue creation.
     if "blocking" in self._issue:
       assert "blocking" not in comment_0_data["updates"]
       comment_0_data["updates"]["blocking"] = []
@@ -401,19 +406,34 @@ class GoogleCodeComment(object):
     if "updates" not in self._comment:
       return ""
 
-    # [ "issue-export-test:7" ] => [ "7" ]
+    # [ "alpha:7", "beta:8", "-gamma:9" ] => ([ "7", "8" ], [ "9" ])
     # NOTE: We don't support cross-project issue references. Rather we
     # just assume the issue reference is within the same project.
     def getIssueIds(issue_ref_list):
-      return [proj.split(":")[1] for proj in issue_ref_list]
+      added = []
+      removed = []
+      for proj in issue_ref_list:
+        parts = proj.split(":")
+        if parts[0][0] != "-":
+          added.append(parts[1])
+        else:
+          removed.append(parts[1])
+      return added, removed
 
     ref_info = ""
     if "blocking" in self._comment["updates"]:
-      issue_ids = getIssueIds(self._comment["updates"]["blocking"])
-      ref_info += "- **Blocking**: #" + ", #".join(issue_ids) + "\n"
+      added, removed = getIssueIds(self._comment["updates"]["blocking"])
+      if added:
+        ref_info += "- **Blocking**: #" + ", #".join(added) + "\n"
+      if removed:
+        ref_info += "- **No longer blocking**: #" + ", #".join(removed) + "\n"
     if "blockedOn" in self._comment["updates"]:
-      issue_ids = getIssueIds(self._comment["updates"]["blockedOn"])
-      ref_info += "- **Blocked On**: #" + ", #".join(issue_ids) + "\n"
+      added, removed = getIssueIds(self._comment["updates"]["blockedOn"])
+      if added:
+        ref_info += "- **Blocked on**: #" + ", #".join(added) + "\n"
+      if removed:
+        ref_info += ("- **No longer blocked on**: #" +
+                    ", #".join(removed) + "\n")
 
     return ref_info
 
