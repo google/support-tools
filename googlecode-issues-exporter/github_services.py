@@ -16,6 +16,7 @@
 
 import collections
 import json
+import re
 import sys
 import time
 import urllib
@@ -37,6 +38,14 @@ REQUEST_CHECK_TIME = 60 * 5
 # chronological order.
 COMMENT_DELAY = 0.5
 
+# Regular expression used by Google Code for auto-linking issue references,
+# e.g. "issue #8" or "bug5".
+ISSUE_REF_RE = re.compile(r"""
+    (?P<prefix>\b(issue|bug)\s*)
+    (?P<project_name>\s+[-a-z0-9]+[:\#])?
+    (?P<number_sign>\#?)
+    (?P<issue_id>\d+)\b""", re.IGNORECASE | re.MULTILINE | re.VERBOSE)
+
 
 def _CheckSuccessful(response):
   """Checks if the request was successful.
@@ -49,6 +58,30 @@ def _CheckSuccessful(response):
     True if the request was succesful.
   """
   return "status" in response and 200 <= int(response["status"]) < 300
+
+
+def RewriteComment(comment, id_mapping):
+  """Rewrite a comment's text based on an ID mapping.
+
+  Args:
+    comment: A string with the comment text. e.g. 'Closes issue #42'.
+    id_mapping: A dictionary mapping Google Code to GitHub issue IDs.
+                e.g. { '42': '142' }
+  Returns:
+    The rewritten comment text.
+  """
+  def renumberIssueReferences(match):
+    # Ignore references to other projects.
+    if match.group('project_name'):
+      return match.group()
+    # Ignore issues not found in the ID mapping.
+    google_code_id = match.group('issue_id')
+    if google_code_id not in id_mapping:
+      return match.group()
+    github_id = id_mapping[google_code_id]
+    return match.group().replace(google_code_id, github_id)
+
+  return ISSUE_REF_RE.sub(renumberIssueReferences, comment)
 
 
 class GitHubService(object):
@@ -479,7 +512,7 @@ class IssueService(issues.IssueService):
       raise issues.ServiceError("\nFailed to close issue #%s.\n%s" % (
           issue_number, content))
 
-  def CreateComment(self, issue_number, googlecode_comment):
+  def CreateComment(self, issue_number, googlecode_comment, id_mapping=None):
     """Creates a comment on a GitHub issue.
 
     Args:
@@ -491,6 +524,10 @@ class IssueService(issues.IssueService):
     """
     comment_url = "%s/%d/comments" % (self._github_issues_url, issue_number)
     comment = googlecode_comment.GetDescription()
+
+    # Rewrite IDs to Google Code text reference the right issues on GitHub.
+    if id_mapping:
+      comment = RewriteComment(comment, id_mapping)
 
     json_body = json.dumps({"body": comment})
     response, content = self._github_service.PerformPostRequest(

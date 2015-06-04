@@ -506,12 +506,13 @@ class IssueService(object):
     """
     raise NotImplementedError()
 
-  def CreateComment(self, issue_number, googlecode_comment):
+  def CreateComment(self, issue_number, googlecode_comment, id_mapping=None):
     """Creates a comment on an issue.
 
     Args:
       issue_number: The issue number.
       googlecode_comment: An instance of GoogleCodeComment
+      id_mapping: A dictionary mapping Google Code IDs to new system IDs.
     """
     raise NotImplementedError()
 
