@@ -441,6 +441,8 @@ class IssueService(issues.IssueService):
     # can edit an issue to remove its title afterwards.
     if issue_title.isspace():
       issue_title = "<empty title>"
+    # NOTE: Only users with "push" access can set labels for new issues. See:
+    # https://developer.github.com/v3/issues/#create-an-issue
     issue = {
         "title": issue_title,
         "body": googlecode_issue.GetDescription(),
