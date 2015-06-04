@@ -145,45 +145,64 @@ class GoogleCodeIssueTest(unittest.TestCase):
         blocking_comment.GetDescription())
 
   def testGetCommentDescription_BlockingBlockedOn_Issue(self):
-    # The way issues store blocking/blockedOn is different.
     issue_json = {
-        "comments" : {
-            "items" : [ {
-                "id" : 0,
-                "author" : {
-                  "name" : "<comment-author>",
-                },
-                "content" : "<comment-content>",
-                "published": "<comment-published>",
-            }, ],
-        },
-        "published": "<issue-published>",
-        "blocking" : [ {
-              "projectId" : "issue-export-test",
-              "issueId" : 10
-            },
-            {
-              "projectId" : "issue-export-test",
-              "issueId" : 11
-            } ],
         "blockedOn" : [ {
-              "projectId" : "issue-export-test",
-              "issueId" : 20
+          "projectId" : "issue-export-test",
+          "issueId" : 3
+        } ],
+        "blocking" : [ {
+          "projectId" : "issue-export-test",
+          "issueId" : 2
+        } ],
+        "comments" : {
+          "items" : [ {
+            "id" : 0,
+            "content" : "Comment #0",
+            "published": "last year",
+            # No updates. This test verifies they get added.
+          }, {
+            "id" : 1,
+            "content" : "Comment #1",
+            "published": "last year",
+            "updates" : {
+              "blocking" : [ "issue-export-test:2" ]
             },
-            {
-              "projectId" : "issue-export-test",
-              "issueId" : 21
-            } ],
+          }, {
+            "id" : 2,
+            "content" : "Comment #2",
+            "published": "last year",
+            "updates" : {
+              "blockedOn" : [ "-issue-export-test:1", "issue-export-test:3" ],
+            },
+          } ]
+        }
+      }
 
-    }
+    # Definitely not initialized.
+    issue_exporter = issues.IssueExporter(None, None, None, None, None)
+    issue_json = issue_exporter._FixBlockingBlockedOn(issue_json)
     blocking_issue = issues.GoogleCodeIssue(issue_json, REPO, USER_MAP)
 
     self.assertEqual(
-        "```\n<comment-content>\n```\n\nOriginal issue reported on code.google.com by "
-        "`default_username` on <comment-published>\n"
-        "- **Blocking**: #10, #11\n"
-        "- **Blocked on**: #20, #21\n",
+        "```\nComment #0\n```\n\nOriginal issue reported on code.google.com by "
+        "`None` on last year\n"
+        "- **Blocked on**: #1\n",  # Inferred via magic.
         blocking_issue.GetDescription())
+
+    json_comments = blocking_issue.GetComments()
+    comment_1 = issues.GoogleCodeComment(blocking_issue, json_comments[0])
+    self.assertEqual(
+            "```\nComment #1\n```\n\nOriginal issue reported on code.google.com by "
+            "`None` on last year\n"
+            "- **Blocking**: #2\n",
+            comment_1.GetDescription())
+    comment_2 = issues.GoogleCodeComment(blocking_issue, json_comments[1])
+    self.assertEqual(
+        "```\nComment #2\n```\n\nOriginal issue reported on code.google.com by "
+        "`None` on last year\n"
+        "- **Blocked on**: #3\n"
+        "- **No longer blocked on**: #1\n",
+        comment_2.GetDescription())
 
   def testGetHtmlCommentDescription(self):
     self.assertIn("```\n1 < 2\n```", HTML_COMMENT.GetDescription())

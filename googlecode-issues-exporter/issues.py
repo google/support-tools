@@ -24,6 +24,25 @@ import sys
 import HTMLParser
 
 
+def _ParseIssueReferences(issue_ref_list):
+  """Parses a list of issue references into a tuple of IDs added/removed.
+
+  For example: [ "alpha:7", "beta:8", "-gamma:9" ] => ([ "7", "8" ], [ "9" ])
+
+  We don't support cross-project issue references. Rather we
+  just assume the issue reference is within the same project.
+  """
+  added = []
+  removed = []
+  for proj in issue_ref_list:
+    parts = proj.split(":")
+    if parts[0][0] != "-":
+      added.append(parts[1])
+    else:
+      removed.append(parts[1])
+  return added, removed
+
+
 class IdentityDict(dict):
   def __missing__(self, key):
     return key
@@ -246,27 +265,6 @@ class GoogleCodeIssue(object):
     # we fudge a few things since metadata is stored differently for
     # "the issue" (i.e. comment #0) and other comments.
     comment_0_data = self._issue["comments"]["items"][0]
-    if "updates" not in comment_0_data:
-      comment_0_data["updates"] = {}
-
-    # BUG: The issue export contains the union of the initial blocked/blocking
-    # status and all the updates via comments. So you'll see duplicate data
-    # when processing those coments, but we include it anyways because
-    # otherwise you'll miss the blocking/blockedOn if it ONLY was in the
-    # initial issue creation.
-    if "blocking" in self._issue:
-      assert "blocking" not in comment_0_data["updates"]
-      comment_0_data["updates"]["blocking"] = []
-      for blocking_issue in self._issue["blocking"]:
-        issue_ref = blocking_issue["projectId"] + ":" + str(blocking_issue["issueId"])
-        comment_0_data["updates"]["blocking"].append(issue_ref)
-    if "blockedOn" in self._issue:
-      assert "blockedOn" not in comment_0_data["updates"]
-      comment_0_data["updates"]["blockedOn"] = []
-      for blocking_issue in self._issue["blockedOn"]:
-        issue_ref = blocking_issue["projectId"] + ":" + str(blocking_issue["issueId"])
-        comment_0_data["updates"]["blockedOn"].append(issue_ref)
-
     googlecode_comment = GoogleCodeComment(self, comment_0_data)
     return googlecode_comment.GetDescription()
 
@@ -405,36 +403,22 @@ class GoogleCodeComment(object):
     """Returns Markdown text for a comment's links to other issues."""
     if "updates" not in self._comment:
       return ""
-
-    # [ "alpha:7", "beta:8", "-gamma:9" ] => ([ "7", "8" ], [ "9" ])
-    # NOTE: We don't support cross-project issue references. Rather we
-    # just assume the issue reference is within the same project.
-    def getIssueIds(issue_ref_list):
-      added = []
-      removed = []
-      for proj in issue_ref_list:
-        parts = proj.split(":")
-        if parts[0][0] != "-":
-          added.append(parts[1])
-        else:
-          removed.append(parts[1])
-      return added, removed
+    updates = self._comment["updates"]
 
     ref_info = ""
-    if "blocking" in self._comment["updates"]:
-      added, removed = getIssueIds(self._comment["updates"]["blocking"])
+    if "blocking" in updates:
+      added, removed = _ParseIssueReferences(updates["blocking"])
       if added:
         ref_info += "- **Blocking**: #" + ", #".join(added) + "\n"
       if removed:
         ref_info += "- **No longer blocking**: #" + ", #".join(removed) + "\n"
-    if "blockedOn" in self._comment["updates"]:
-      added, removed = getIssueIds(self._comment["updates"]["blockedOn"])
+    if "blockedOn" in updates:
+      added, removed = _ParseIssueReferences(updates["blockedOn"])
       if added:
         ref_info += "- **Blocked on**: #" + ", #".join(added) + "\n"
       if removed:
         ref_info += ("- **No longer blocked on**: #" +
                     ", #".join(removed) + "\n")
-
     return ref_info
 
   def _GetAttachmentInfo(self):
@@ -669,6 +653,83 @@ class IssueExporter(object):
       self._UpdateProgressBar()
       self._issue_service.CreateComment(issue_number, googlecode_comment)
 
+  def _FixBlockingBlockedOn(self, issue_json):
+    """Fix the issue JSON object to normalize how blocking/blocked-on are used.
+
+    There is a bug in how Google Takeout exports blocking/blocked-on status.
+    Each comment may have an update with a list of added/removed
+    blocked/blocking issues. However, comment #0, the "original issue state"
+    does not contain this information.
+
+    However, the issue does contain summary information. (i.e. a union of
+    initial state and all comment updates.
+
+    This function figures out what should be in comment #0 so everything
+    actually makes sense when rendered.
+    """
+    # Issue references we add to comment #0
+    # - References that are removed later, but not explicitly added.
+    #   (assumed to have been added on comment #0).
+    # - References that are in the summary, but not explicitly added.
+    #   (assumed to have been added on comment #0).
+    def IssueRefToString(issue_ref):
+      return issue_ref["projectId"] + ":" + str(issue_ref["issueId"])
+
+    # Build up the summary blocking/blocked-on data.
+    blocking = []
+    blockedon = []
+    if "blocking" in issue_json:
+      for blocking_issue in issue_json["blocking"]:
+        blocking.append(IssueRefToString(blocking_issue))
+    if "blockedOn" in issue_json:
+      for blockedon_issue in issue_json["blockedOn"]:
+        blockedon.append(IssueRefToString(blockedon_issue))
+
+    blocking, _ = _ParseIssueReferences(blocking)
+    blockedon, _ = _ParseIssueReferences(blockedon)
+
+    # Go through updates made via comments.
+    issue_comments = issue_json["comments"]["items"]
+    for comment in issue_comments:
+      if "updates" not in comment:
+        continue
+      updates = comment["updates"]
+      if "blocking" in updates:
+        added, removed = _ParseIssueReferences(updates["blocking"])
+        for added_blocking in added:
+          if added_blocking in blocking:
+            blocking.remove(added_blocking)
+        for removed_blocking in removed:
+           if removed_blocking not in blocking:
+             blocking.append(removed_blocking)
+      if "blockedOn" in updates:
+        added, removed = _ParseIssueReferences(updates["blockedOn"])
+        for added_blockedon in added:
+          if added_blockedon in blockedon:
+            blockedon.remove(added_blockedon)
+        for removed_blockedon in removed:
+          if removed_blockedon not in blockedon:
+            blockedon.append(removed_blockedon)
+
+    # Insert blocking/blocked-on into comment #0 as necessary.
+    if blocking or blockedon:
+      comment_0_data = issue_json["comments"]["items"][0]
+      if "updates" not in comment_0_data:
+        comment_0_data["updates"] = {}
+      comment_0_updates = comment_0_data["updates"]
+      if blocking:
+        if "blocking" not in comment_0_updates:
+          comment_0_updates["blocking"] = []
+        comment_0_updates["blocking"].extend(
+            ["???:" + iid for iid in blocking])
+      if blockedon:
+        if "blockedOn" not in comment_0_updates:
+          comment_0_updates["blockedOn"] = []
+        comment_0_updates["blockedOn"].extend(
+            ["???:" + iid for iid in blockedon])
+
+    return issue_json
+
   def Start(self):
     """Start the issue export process."""
     print "Starting issue export for '%s'" % (self._project_name)
@@ -682,6 +743,7 @@ class IssueExporter(object):
     last_issue_skipped = False  # Only used for formatting output.
 
     for issue in self._issue_json_data:
+      self._FixBlockingBlockedOn(issue)
       googlecode_issue = GoogleCodeIssue(
           issue, self._project_name, self._user_map)
       issue_title = googlecode_issue.GetTitle()
