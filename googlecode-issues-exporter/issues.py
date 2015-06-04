@@ -351,6 +351,10 @@ class GoogleCodeComment(object):
     comment_date = self.GetCreatedOn()
     comment_text = self.GetContent()
 
+    comment_updates = {}
+    if "updates" in self._comment:
+      comment_updates = self._comment["updates"]
+
     body = ""
     if comment_text:
       # Google Takeout includes escaped HTML such as &gt and &aacute.
@@ -369,12 +373,13 @@ class GoogleCodeComment(object):
     footer = "Original issue reported on code.google.com by `%s` on %s\n" % (
         author, TryFormatDate(comment_date))
 
+    if "status" in comment_updates:
+      footer += "- Status changed to `%s`.\n" % (comment_updates["status"])
     footer += self._GetLabelInfo()
     footer += self._GetLinksToOtherIssues()
-    # Merged into.
-    if "updates" in self._comment and "mergedInto" in self._comment["updates"]:
+    if "mergedInto" in comment_updates:
       footer += "- **Merged into**: #%s\n" % (
-          self._comment["updates"]["mergedInto"])
+          comment_updates["mergedInto"])
 
     # Add references to attachments as appropriate. (Do this last since it
     # inserts a horizontal rule.)
