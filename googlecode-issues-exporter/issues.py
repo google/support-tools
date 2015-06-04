@@ -371,6 +371,11 @@ class GoogleCodeComment(object):
 
     footer += self._GetLabelInfo()
     footer += self._GetLinksToOtherIssues()
+    # Merged into.
+    if "updates" in self._comment and "mergedInto" in self._comment["updates"]:
+      footer += "- **Merged into**: #%s\n" % (
+          self._comment["updates"]["mergedInto"])
+
     # Add references to attachments as appropriate. (Do this last since it
     # inserts a horizontal rule.)
     footer += self._GetAttachmentInfo()

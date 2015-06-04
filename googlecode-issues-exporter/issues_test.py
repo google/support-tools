@@ -204,6 +204,23 @@ class GoogleCodeIssueTest(unittest.TestCase):
         "- **No longer blocked on**: #1\n",
         comment_2.GetDescription())
 
+  def testMergedInto(self):
+    comment_data = {
+        "content": "???",
+        "id": 1,
+        "published": "last year",
+        "updates": {
+            "mergedInto": "10",
+            },
+    }
+    comment = issues.GoogleCodeComment(SINGLE_ISSUE, comment_data)
+
+    self.assertEqual(
+        "```\n???\n```\n\nOriginal issue reported on code.google.com by "
+        "`None` on last year\n"
+        "- **Merged into**: #10\n",
+        comment.GetDescription())
+
   def testGetHtmlCommentDescription(self):
     self.assertIn("```\n1 < 2\n```", HTML_COMMENT.GetDescription())
 
