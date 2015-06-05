@@ -120,7 +120,7 @@ class TestIssueExporter(unittest.TestCase):
 
   def testGetAllPreviousIssues(self):
     self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
-    self.issue_exporter._GetAllPreviousIssues()
+    self.issue_exporter.Init()
     self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
 
   def testCreateIssue(self):

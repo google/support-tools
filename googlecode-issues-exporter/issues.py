@@ -664,12 +664,16 @@ class IssueExporter(object):
     self._comment_total = 0
     self._skipped_issues = 0
 
-  def Init(self):
-    """Initialize the needed variables."""
-    self._GetAllPreviousIssues()
+    # Mapping from Google Code issue ID to destination service issue ID.
+    self._id_map = {}
 
-  def _GetAllPreviousIssues(self):
-    """Gets all previously uploaded issues."""
+  def Init(self, require_all_issues_exported=False):
+    """Initialize the needed variables.
+
+    Arg:
+      require_all_issues_exported: Bool. Require that all issues have
+          been exported. Used to ensure that rewritting comments won't fail.
+    """
     print "Getting any previously added issues..."
     open_issues = self._issue_service.GetIssues("open")
     closed_issues = self._issue_service.GetIssues("closed")
@@ -683,6 +687,27 @@ class IssueExporter(object):
           "title": title,
           "comment_count": comment_count,
           }
+
+    # Build the ID map based on previously created issue. Only used if
+    # rewriting comments.
+    if not require_all_issues_exported:
+      return
+
+    self._id_map = {}
+    for issue in self._issue_json_data:
+      gc_issue = GoogleCodeIssue(issue, self._project_name, self._user_map)
+      if gc_issue.GetTitle() in self._previously_created_issues:
+        existing_issue = self._previously_created_issues[gc_issue.GetTitle()]
+        self._id_map[str(gc_issue.GetId())] = str(existing_issue["id"])
+      else:
+        raise Exception(
+            "Issue #%s '%s' not found. Can't rewrite comments." % (
+                gc_issue.GetId(), gc_issue.GetTitle()))
+
+    print "len(id_map) = %s, with %s total issues" % (
+        len(self._id_map), len(self._issue_json_data))
+    if len(self._id_map) < len(self._issue_json_data):
+      raise Exception("Not all issues have been exported.")
 
   def _UpdateProgressBar(self):
     """Update issue count 'feed'.
@@ -739,7 +764,7 @@ class IssueExporter(object):
       id_mapping: Mapping from Google Code issue ID to destination system.
     """
     comments = googlecode_issue.GetComments()
-    self._prefix = "[Rewriting] "
+    self._prefix = "Rewriting "
     self._comment_total = len(comments)
     self._comment_number = 0
 
@@ -747,6 +772,13 @@ class IssueExporter(object):
     # know the IDs used on the output side. (GitHub uses timestamps :P)
     existing_comments = self._issue_service.GetComments(issue_number)
     for comment_idx in range(0, len(comments)):
+      if comment_idx >= len(existing_comments):
+        err_msg = (
+          "Error: More comments on Google Code than on dest service? "
+          "%s vs %s" % (len(comments), len(existing_comments)))
+        print err_msg
+        break
+
       comment = comments[comment_idx]
       comment_number = existing_comments[comment_idx]["id"]
 
@@ -754,7 +786,6 @@ class IssueExporter(object):
       self._comment_number += 1
       self._UpdateProgressBar()
       self._issue_service.EditComment(issue_number, gc_comment, comment_number)
-
 
   def _FixBlockingBlockedOn(self, issue_json):
     """Fix the issue JSON object to normalize how blocking/blocked-on are used.
@@ -835,10 +866,14 @@ class IssueExporter(object):
 
     return issue_json
 
-  def Start(self):
-    """Start the issue export process."""
+  def Start(self, rewrite_comments=False):
+    """Start the issue export process.
+    
+    Args:
+      rewrite_comments: Bool. If set will rewrite the comments for previously
+          exported issues. Used to fix export problems and remap issue IDs.
+    """
     print "Starting issue export for '%s'" % (self._project_name)
-
     self._issue_total = len(self._issue_json_data)
     self._comment_total = 0
     self._issue_number = 0
@@ -846,24 +881,6 @@ class IssueExporter(object):
     self._skipped_issues = 0
 
     last_issue_skipped = False  # Only used for formatting output.
-    rewrite_comments = False  # Experimental...
-
-    # If rewriting comments, scan all previously created issues to build up the
-    # mapping between Google Code issue IDs and IDs at the destination.
-    id_map = {}
-    if rewrite_comments:
-      for issue in self._issue_json_data:
-        gc_issue = GoogleCodeIssue(issue, self._project_name, self._user_map)
-        if gc_issue.GetTitle() in self._previously_created_issues:
-          existing_issue = self._previously_created_issues[gc_issue.GetTitle()]
-          id_map[str(gc_issue.GetId())] = str(existing_issue["id"])
-        else:
-          raise Exception(
-              "Issue #%s '%s' not found. Can't rewrite comments." % (
-                  gc_issue.GetId(), gc_issue.GetTitle()))
-      print "Rewriting Comments!"
-      print "len(id_map) = %s, with %s total issues" % (
-          len(id_map), len(self._issue_json_data))
 
     for issue in self._issue_json_data:
       self._FixBlockingBlockedOn(issue)
@@ -898,7 +915,7 @@ class IssueExporter(object):
 
         if rewrite_comments:
           self._RewriteComments(
-              googlecode_issue, existing_issue["id"], id_map)
+              googlecode_issue, existing_issue["id"], self._id_map)
           print ""  # Advanced past the "progress bar" line.
 
         continue

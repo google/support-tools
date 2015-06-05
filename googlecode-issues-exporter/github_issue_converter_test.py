@@ -104,7 +104,7 @@ class TestIssueExporter(unittest.TestCase):
     self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
     content = [{"number": 1, "title": "issue_title", "comments": 2}]
     self.github_service.AddResponse(content=content)
-    self.issue_exporter._GetAllPreviousIssues()
+    self.issue_exporter.Init()
     self.assertEqual(1, len(self.issue_exporter._previously_created_issues))
     self.assertTrue(
         "issue_title" in self.issue_exporter._previously_created_issues)

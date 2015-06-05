@@ -30,7 +30,8 @@ import issues
 
 
 def ExportIssues(github_owner_username, github_repo_name, github_oauth_token,
-                 issue_file_path, project_name, user_file_path, rate_limit):
+                 issue_file_path, project_name, user_file_path, rate_limit,
+                 rewrite_comments):
   """Exports all issues for a given project."""
   github_service = github_services.GitHubService(
       github_owner_username, github_repo_name, github_oauth_token,
@@ -48,8 +49,8 @@ def ExportIssues(github_owner_username, github_repo_name, github_oauth_token,
       issue_service, user_service, issue_data, project_name, user_map)
 
   try:
-    issue_exporter.Init()
-    issue_exporter.Start()
+    issue_exporter.Init(rewrite_comments)
+    issue_exporter.Start(rewrite_comments)
     print "\nDone!\n"
   except IOError, e:
     print "[IOError] ERROR: %s" % e
@@ -84,16 +85,18 @@ def main(args):
   parser.add_argument("--user_file_path", required=False,
                       help="The path to the file containing a mapping from"
                       "email address to github username.")
-  parser.add_argument("--rate_limit", required=False, default="True",
+  parser.add_argument("--rate_limit", required=False, action='store_true',
                      help="Rate limit GitHub requests to not run into"
                      "anti-abuse limits.")
+  parser.add_argument("--rewrite_comments", required=False, action='store_true',
+                     help="Rewrite comments, such as remapping issue IDs.")
   parsed_args, _ = parser.parse_known_args(args)
 
   ExportIssues(
       parsed_args.github_owner_username, parsed_args.github_repo_name,
       parsed_args.github_oauth_token, parsed_args.issue_file_path,
       parsed_args.project_name, parsed_args.user_file_path,
-      parsed_args.rate_limit)
+      parsed_args.rate_limit, parsed_args.rewrite_comments)
 
 
 if __name__ == "__main__":
