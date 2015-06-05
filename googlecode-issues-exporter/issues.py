@@ -803,7 +803,7 @@ class IssueExporter(object):
       self._UpdateProgressBar()
       self._issue_service.CreateComment(issue_number, googlecode_comment)
 
-  def _RewriteComments(self, googlecode_issue, issue_number):
+  def _RewriteComments(self, googlecode_issue, exported_issue_number):
     """Rewrite all comments in the issue to update issue ID references.
 
     Args:
@@ -818,12 +818,12 @@ class IssueExporter(object):
 
     # Get existing comments from the destination, necessary because we don't
     # know the IDs used on the output side. (GitHub uses timestamps :P)
-    existing_comments = self._issue_service.GetComments(issue_number)
+    existing_comments = self._issue_service.GetComments(exported_issue_number)
     for comment_idx in range(0, len(comments)):
       if comment_idx >= len(existing_comments):
         print "\nError: More comments on Google Code than on dest service?"
         print "Google Code #%s vs. dest service #%s (%s comments vs. %s)" % (
-            googlecode_issue.GetId(), issue_number,
+            googlecode_issue.GetId(), exported_issue_number,
             len(comments), len(existing_comments))
         break
 
@@ -833,7 +833,8 @@ class IssueExporter(object):
       gc_comment = GoogleCodeComment(googlecode_issue, comment, id_mapping)
       self._comment_number += 1
       self._UpdateProgressBar()
-      self._issue_service.EditComment(issue_number, gc_comment, comment_number)
+      self._issue_service.EditComment(
+          exported_issue_number, gc_comment, comment_number)
 
   def _FixBlockingBlockedOn(self, issue_json):
     """Fix the issue JSON object to normalize how blocking/blocked-on are used.
