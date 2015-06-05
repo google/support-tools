@@ -323,7 +323,11 @@ class GoogleCodeIssue(object):
     # "the issue" (i.e. comment #0) and other comments.
     comment_0_data = self._issue["comments"]["items"][0]
     googlecode_comment = GoogleCodeComment(self, comment_0_data)
-    return googlecode_comment.GetDescription()
+    issue_description = googlecode_comment.GetDescription()
+    # Be careful not to run afoul of issue reference rewriting...
+    issue_header = "Originally reported on Google Code with ID %s\n" % (
+        self.GetId())
+    return issue_header + issue_description
 
 
 class GoogleCodeComment(object):
@@ -429,7 +433,7 @@ class GoogleCodeComment(object):
 
       body += "```\n" + comment_text + "\n```\n\n"
 
-    footer = "Original issue reported on code.google.com by `%s` on %s\n" % (
+    footer = "Reported by `%s` on %s\n" % (
         author, TryFormatDate(comment_date))
 
     if "status" in comment_updates:

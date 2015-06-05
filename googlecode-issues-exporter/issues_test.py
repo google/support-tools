@@ -115,7 +115,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
 
   def testGetCommentDescription(self):
     self.assertEqual(
-        "```\none\n```\n\nOriginal issue reported on code.google.com by "
+        "```\none\n```\n\nReported by "
         "`a_uthor` on last year\n"
         "- **Labels added**: added-label\n"
         "- **Labels removed**: removed-label\n",
@@ -136,8 +136,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
     blocking_comment = issues.GoogleCodeComment(SINGLE_ISSUE, blocking_data)
 
     self.assertEqual(
-        "```\n???\n```\n\nOriginal issue reported on code.google.com by "
-        "`a_uthor` on last year\n"
+        "```\n???\n```\n\nReported by `a_uthor` on last year\n"
         "- **Blocking**: #1, #2\n"
         "- **No longer blocking**: #3\n"
         "- **Blocked on**: #1\n"
@@ -146,6 +145,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
 
   def testGetCommentDescription_BlockingBlockedOn_Issue(self):
     issue_json = {
+        "id": 42,
         "blockedOn" : [ {
           "projectId" : "issue-export-test",
           "issueId" : 3
@@ -184,22 +184,20 @@ class GoogleCodeIssueTest(unittest.TestCase):
     blocking_issue = issues.GoogleCodeIssue(issue_json, REPO, USER_MAP)
 
     self.assertEqual(
-        "```\nComment #0\n```\n\nOriginal issue reported on code.google.com by "
-        "`None` on last year\n"
+        "Originally reported on Google Code with ID 42\n"
+        "```\nComment #0\n```\n\nReported by `None` on last year\n"
         "- **Blocked on**: #1\n",  # Inferred via magic.
         blocking_issue.GetDescription())
 
     json_comments = blocking_issue.GetComments()
     comment_1 = issues.GoogleCodeComment(blocking_issue, json_comments[0])
     self.assertEqual(
-            "```\nComment #1\n```\n\nOriginal issue reported on code.google.com by "
-            "`None` on last year\n"
+            "```\nComment #1\n```\n\nReported by `None` on last year\n"
             "- **Blocking**: #2\n",
             comment_1.GetDescription())
     comment_2 = issues.GoogleCodeComment(blocking_issue, json_comments[1])
     self.assertEqual(
-        "```\nComment #2\n```\n\nOriginal issue reported on code.google.com by "
-        "`None` on last year\n"
+        "```\nComment #2\n```\n\nReported by `None` on last year\n"
         "- **Blocked on**: #3\n"
         "- **No longer blocked on**: #1\n",
         comment_2.GetDescription())
@@ -216,8 +214,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
     comment = issues.GoogleCodeComment(SINGLE_ISSUE, comment_data)
 
     self.assertEqual(
-        "```\n???\n```\n\nOriginal issue reported on code.google.com by "
-        "`None` on last year\n"
+        "```\n???\n```\n\nReported by `None` on last year\n"
         "- **Merged into**: #10\n",
         comment.GetDescription())
 
@@ -233,13 +230,13 @@ class GoogleCodeIssueTest(unittest.TestCase):
     comment = issues.GoogleCodeComment(SINGLE_ISSUE, comment_data)
 
     self.assertEqual(
-        "```\n???\n```\n\nOriginal issue reported on code.google.com by "
-        "`None` on last year\n"
+        "```\n???\n```\n\nReported by `None` on last year\n"
         "- **Status changed**: `Fixed`\n",
         comment.GetDescription())
 
   def testIssueIdRewriting(self):
     comment_body = (
+        "Originally reported on Google Code with ID 42\n"
         "issue 1, issue #2, and issue3\n"
         "bug 4, bug #5, and bug6\n"
         "other-project:7, issue other-project#8\n"
@@ -247,6 +244,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
         "- **Blocked**: #111\n"
         "- **Blocking**: #222, #333\n")
     expected_comment_body = (
+        "Originally reported on Google Code with ID 42\n"  # Not changed.
         "issue 111, issue #222, and issue3\n"
         "bug 4, bug #555, and bug6\n"
         "other-project:7, issue other-project#8\n"
@@ -259,6 +257,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
       "2": "222",
       "5": "555",
       "8": "888",  # NOTE: Not replaced bc proj-ref.
+      "42": "123",  # Origin header shouldn't be replaced.
       "111": "1000",
       "222": "1001",
       "333": "1002",

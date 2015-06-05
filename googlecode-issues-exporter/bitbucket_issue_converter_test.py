@@ -64,8 +64,7 @@ class TestIssueService(unittest.TestCase):
     issue_body = {
         "assignee": "default_username",
         "content": (
-            "```\none\n```\n\nOriginal issue reported on code.google.com"
-            " by `a_uthor` on last year\n"
+            "```\none\n```\n\nReported by `a_uthor` on last year\n"
             "- **Labels added**: added-label\n"
             "- **Labels removed**: removed-label\n"),
         "content_updated_on": "last month",
@@ -81,6 +80,10 @@ class TestIssueService(unittest.TestCase):
     issue_number = self._bitbucket_issue_service.CreateIssue(SINGLE_ISSUE)
     self.assertEqual(1, issue_number)
     actual = self._bitbucket_issue_service._bitbucket_issues[0]
+    # The comment body gets rewritten to preserve the origin ID.
+    issue_body["content"] = (
+        "Originally reported on Google Code with ID 1\n" + issue_body["content"])
+
     self.assertEqual(issue_body, actual)
 
   def testCloseIssue(self):
@@ -91,8 +94,7 @@ class TestIssueService(unittest.TestCase):
   def testCreateComment(self):
     comment_body = {
         "content": (
-            "```\none\n```\n\nOriginal issue reported on code.google.com "
-            "by `a_uthor` on last year\n"
+            "```\none\n```\n\nReported by `a_uthor` on last year\n"
             "- **Labels added**: added-label\n"
             "- **Labels removed**: removed-label\n"),
         "created_on": "last year",

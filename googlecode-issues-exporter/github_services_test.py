@@ -167,8 +167,7 @@ class TestIssueService(unittest.TestCase):
   def testCreateIssue(self):
     issue_body = {
         "body": (
-            "```\none\n```\n\nOriginal issue reported on code.google.com by"
-            " `a_uthor` on last year\n"
+            "```\none\n```\n\nReported by `a_uthor` on last year\n"
             "- **Labels added**: added-label\n"
             "- **Labels removed**: removed-label\n"),
         "assignee": "default_username",
@@ -181,6 +180,9 @@ class TestIssueService(unittest.TestCase):
     uri = ("%s/repos/%s/%s/issues?access_token=%s" %
            (GITHUB_API_URL, GITHUB_USERNAME, GITHUB_REPO, GITHUB_TOKEN))
     self.assertEqual(self.http_mock.last_url, uri)
+    # The issue body gets rewritten slightly to preserve origin issue IDs.
+    issue_body["body"] = (
+      "Originally reported on Google Code with ID 1\n" + issue_body["body"])
     self.assertEqual(self.http_mock.last_body, json.dumps(issue_body))
     self.assertEqual(1, issue_number)
 
@@ -195,8 +197,7 @@ class TestIssueService(unittest.TestCase):
 
   def testCreateComment(self):
     comment_body = (
-        "```\none\n```\n\nOriginal issue reported on code.google.com "
-        "by `a_uthor` on last year\n"
+        "```\none\n```\n\nReported by `a_uthor` on last year\n"
         "- **Labels added**: added-label\n"
         "- **Labels removed**: removed-label\n")
     self.github_issue_service.CreateComment(1, SINGLE_COMMENT)
