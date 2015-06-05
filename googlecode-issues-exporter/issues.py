@@ -87,7 +87,7 @@ def _ParseIssueReferences(issue_ref_list):
   removed = []
   for proj in issue_ref_list:
     parts = proj.split(":")
-    proj_id = parts[1] if len(parts) >= 2 else proj
+    proj_id = parts[1] if len(parts) >= 2 else proj[1:]
     if proj[0] != "-":
       added.append(proj_id)
     else:
@@ -682,6 +682,9 @@ class IssueExporter(object):
       title = issue["title"]
       comment_count = issue["comments"]
       issue_id = issue["number"]  # Yes, GitHub number == ID.
+      if title in self._previously_created_issues:
+        print "Warning: At least two issues with title '%s'. (ID #%s)" % (
+            title, issue_id)
       self._previously_created_issues[title] = {
           "id": issue_id,
           "title": title,
@@ -773,10 +776,10 @@ class IssueExporter(object):
     existing_comments = self._issue_service.GetComments(issue_number)
     for comment_idx in range(0, len(comments)):
       if comment_idx >= len(existing_comments):
-        err_msg = (
-          "Error: More comments on Google Code than on dest service? "
-          "%s vs %s" % (len(comments), len(existing_comments)))
-        print err_msg
+        print "\nError: More comments on Google Code than on dest service?"
+        print "Google Code #%s vs. dest service #%s (%s comments vs. %s)" % (
+            googlecode_issue.GetId(), issue_number,
+            len(comments), len(existing_comments))
         break
 
       comment = comments[comment_idx]
@@ -833,7 +836,7 @@ class IssueExporter(object):
           # to add it to comment #0 since you'll "see" the addition.
           for added_ref in added:
             current_list.append(added_ref)
-            if added_ref in union_references:
+            if added_ref in union_references and added_ref in desired_list:
               desired_list.remove(added_ref)
           # If the reference was removed in this comment AND it wasn't
           # previously added by a comment, then we should add it to the
@@ -868,7 +871,7 @@ class IssueExporter(object):
 
   def Start(self, rewrite_comments=False):
     """Start the issue export process.
-    
+
     Args:
       rewrite_comments: Bool. If set will rewrite the comments for previously
           exported issues. Used to fix export problems and remap issue IDs.
