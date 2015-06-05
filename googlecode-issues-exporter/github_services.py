@@ -471,6 +471,26 @@ class IssueService(issues.IssueService):
 
     return self._GetIssueNumber(content)
 
+  def EditIssue(self, googlecode_issue, issue_number):
+    """Edits an existing GitHub issue."""
+    issue_title = googlecode_issue.GetTitle()
+    issue = {
+        "title": issue_title,
+        "body": googlecode_issue.GetDescription(),
+        "assignee": googlecode_issue.GetOwner(),
+        "labels": googlecode_issue.GetLabels(),
+    }
+    response, content = self._github_service.PerformPatchRequest(
+        self._github_issues_url + ("/%s" % issue_number), json.dumps(issue))
+
+    if not _CheckSuccessful(response):
+      # Newline character at the beginning of the line to allows for in-place
+      # updating of the counts of the issues and comments.
+      raise issues.ServiceError(
+          "\nFailed to edit issue #%d '%s'.\n\n\n"
+          "Response:\n%s\n\n\nContent:\n%s" % (
+              googlecode_issue.GetId(), issue_title, response, content))
+
   def CloseIssue(self, issue_number):
     """Closes a GitHub issue.
 

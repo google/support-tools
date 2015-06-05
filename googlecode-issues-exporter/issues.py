@@ -564,6 +564,10 @@ class IssueService(object):
     """
     raise NotImplementedError()
 
+  def EditIssue(self, googlecode_issue, issue_number):
+    """Edits an existing issue."""
+    raise NotImplementedError()
+
   def CloseIssue(self, issue_number):
     """Closes an issue.
 
@@ -815,6 +819,8 @@ class IssueExporter(object):
     self._prefix = "Rewriting "
     self._comment_total = len(comments)
     self._comment_number = 0
+
+    self._issue_service.EditIssue(googlecode_issue, exported_issue_number)
 
     # Get existing comments from the destination, necessary because we don't
     # know the IDs used on the output side. (GitHub uses timestamps :P)
