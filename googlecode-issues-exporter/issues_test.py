@@ -235,7 +235,7 @@ class GoogleCodeIssueTest(unittest.TestCase):
     self.assertEqual(
         "```\n???\n```\n\nOriginal issue reported on code.google.com by "
         "`None` on last year\n"
-        "- **Status changed**: `Fixed`.\n",
+        "- **Status changed**: `Fixed`\n",
         comment.GetDescription())
 
   def testIssueIdRewriting(self):

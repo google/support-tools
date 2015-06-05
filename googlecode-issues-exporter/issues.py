@@ -80,17 +80,18 @@ def _ParseIssueReferences(issue_ref_list):
 
   For example: [ "alpha:7", "beta:8", "-gamma:9" ] => ([ "7", "8" ], [ "9" ])
 
-  We don't support cross-project issue references. Rather we
+  NOTE: We don't support cross-project issue references. Rather we
   just assume the issue reference is within the same project.
   """
   added = []
   removed = []
   for proj in issue_ref_list:
     parts = proj.split(":")
-    if parts[0][0] != "-":
-      added.append(parts[1])
+    proj_id = parts[1] if len(parts) >= 2 else proj
+    if proj[0] != "-":
+      added.append(proj_id)
     else:
-      removed.append(parts[1])
+      removed.append(proj_id)
   return added, removed
 
 
@@ -432,7 +433,7 @@ class GoogleCodeComment(object):
         author, TryFormatDate(comment_date))
 
     if "status" in comment_updates:
-      footer += "- **Status changed**: `%s`.\n" % (comment_updates["status"])
+      footer += "- **Status changed**: `%s`\n" % (comment_updates["status"])
     footer += self._GetLabelInfo()
     footer += self._GetLinksToOtherIssues()
     if "mergedInto" in comment_updates and comment_updates["mergedInto"]:
