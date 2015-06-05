@@ -653,9 +653,9 @@ class IssueExporter(object):
     self._project_name = project_name
     self._user_map = user_map
 
-    # Mapping from a Google Code issue title to the ID and comment count on the
-    # destination service.
-    self._previously_created_issues = {}
+    # Specialized index of issues to quickly check what has been migrated to
+    # GitHub and if so, determine it's new issue ID. See Init(...).
+    self._issue_index = {}
 
     self._prefix = ""  # Output only.
     self._issue_total = 0
@@ -665,7 +665,7 @@ class IssueExporter(object):
     self._skipped_issues = 0
 
     # Mapping from Google Code issue ID to destination service issue ID.
-    self._id_map = {}
+    self._id_mapping = {}
 
   def Init(self, require_all_issues_exported=False):
     """Initialize the needed variables.
@@ -674,43 +674,84 @@ class IssueExporter(object):
       require_all_issues_exported: Bool. Require that all issues have
           been exported. Used to ensure that rewritting comments won't fail.
     """
-    print "Getting any previously added issues..."
+    print "Building issue index."
+    self._issue_index = {}
+    index = self._issue_index
+
+    for issue in self._issue_json_data:
+      gc_issue = GoogleCodeIssue(issue, self._project_name, self._user_map)
+      if gc_issue.GetTitle() not in index:
+        index[gc_issue.GetTitle()] = []
+      index[gc_issue.GetTitle()].append({
+        "googlecode_id": gc_issue.GetId(),
+        "exported": False,
+        "exported_id": -1,
+        "comment_count": -1,
+      })
+
+    print "Determining which issues have already been exported."
     open_issues = self._issue_service.GetIssues("open")
     closed_issues = self._issue_service.GetIssues("closed")
-    issues = open_issues + closed_issues
-    for issue in issues:
-      title = issue["title"]
-      comment_count = issue["comments"]
-      issue_id = issue["number"]  # Yes, GitHub number == ID.
-      if title in self._previously_created_issues:
-        print "Warning: At least two issues with title '%s'. (ID #%s)" % (
-            title, issue_id)
-      self._previously_created_issues[title] = {
-          "id": issue_id,
-          "title": title,
-          "comment_count": comment_count,
-          }
+    all_exported_issues = open_issues + closed_issues
+    # Sort issues by GitHub ID, since Google Code issues will be exported in
+    # order we can use the exported issue's chronology to resolve ambiguities
+    # for issues with the same title. Yes, GitHub number == ID.
+    sorted(all_exported_issues, key=lambda issue: issue["number"])
+    for exported_issue in all_exported_issues:
+      exported_issue_id = exported_issue["number"]
+      exported_issue_title = exported_issue["title"]
+      if exported_issue_title not in index:
+        print "Warning: GitHub issue #%s '%s' not in Google Takeout dump." % (
+            exported_issue_id, exported_issue_title)
+        continue
+      # Mark of the issue as exported.
+      for idx in range(0, len(index[exported_issue_title])):
+        if not index[exported_issue_title][idx]["exported"]:
+          index[exported_issue_title][idx]["exported"] = True
+          index[exported_issue_title][idx]["exported_id"] = exported_issue_id
+          index[exported_issue_title][idx]["comment_count"] = (
+              exported_issue["comments"])
+          break
+      if idx >= len(index[exported_issue_title]):
+        print "Warning: Couldn't find the %sth issue titled '%s'." % (
+            idx, exported_issue_title)
 
     # Build the ID map based on previously created issue. Only used if
     # rewriting comments.
     if not require_all_issues_exported:
       return
-
-    self._id_map = {}
-    for issue in self._issue_json_data:
-      gc_issue = GoogleCodeIssue(issue, self._project_name, self._user_map)
-      if gc_issue.GetTitle() in self._previously_created_issues:
-        existing_issue = self._previously_created_issues[gc_issue.GetTitle()]
-        self._id_map[str(gc_issue.GetId())] = str(existing_issue["id"])
-      else:
-        raise Exception(
+    print "Confirming all issues have been exported."
+    for title in index:
+      for issue in index[title]:
+        self._id_mapping[str(issue["googlecode_id"])] = str(issue["exported_id"])
+        if not issue["exported"]:
+          raise Exception(
             "Issue #%s '%s' not found. Can't rewrite comments." % (
                 gc_issue.GetId(), gc_issue.GetTitle()))
 
     print "len(id_map) = %s, with %s total issues" % (
-        len(self._id_map), len(self._issue_json_data))
-    if len(self._id_map) < len(self._issue_json_data):
+        len(self._id_mapping), len(self._issue_json_data))
+    if len(self._id_mapping) < len(self._issue_json_data):
       raise Exception("Not all issues have been exported.")
+
+  def _GetExportedIssue(self, googlecode_issue):
+    """Return metadata about the exported Google Code issue."""
+    index = self._issue_index
+    issue_title = googlecode_issue.GetTitle()
+    issue_id = googlecode_issue.GetId()
+
+    if issue_title not in index:
+      raise Exception("Google Code issue '%s' not expected to be exported." % (
+          issue_title))
+    for idx in range(0, len(index[issue_title])):
+      if index[issue_title][idx]["googlecode_id"] == issue_id:
+        return index[issue_title][idx]
+    raise Exception("Unable to find Google Code issue #%s." % (issue_id))
+
+  def _HasIssueBeenExported(self, googlecode_issue):
+    """Returns whether or not a Google Code issue has been exported."""
+    export_metadata = self._GetExportedIssue(googlecode_issue)
+    return export_metadata["exported"]
 
   def _UpdateProgressBar(self):
     """Update issue count 'feed'.
@@ -758,14 +799,14 @@ class IssueExporter(object):
       self._UpdateProgressBar()
       self._issue_service.CreateComment(issue_number, googlecode_comment)
 
-  def _RewriteComments(self, googlecode_issue, issue_number, id_mapping):
+  def _RewriteComments(self, googlecode_issue, issue_number):
     """Rewrite all comments in the issue to update issue ID references.
 
     Args:
       googlecode_issue: The Google Code issue to rewrite.
       issue_number: The issue ID on the **destination** system.
-      id_mapping: Mapping from Google Code issue ID to destination system.
     """
+    id_mapping = self._id_mapping
     comments = googlecode_issue.GetComments()
     self._prefix = "Rewriting "
     self._comment_total = len(comments)
@@ -896,29 +937,29 @@ class IssueExporter(object):
       self._issue_number += 1
 
       # Check if the issue has already been posted.
-      if issue_title in self._previously_created_issues:
-        existing_issue = self._previously_created_issues[issue_title]
+      if self._HasIssueBeenExported(googlecode_issue):
+        export_metadata = self._GetExportedIssue(googlecode_issue)
         print "%sGoogle Code issue #%s '%s' already exported with ID #%s." % (
             ("\n" if not last_issue_skipped else ""),
-            googlecode_issue.GetId(), short_issue_title, existing_issue["id"])
+            export_metadata["googlecode_id"], short_issue_title,
+            export_metadata["exported_id"])
         last_issue_skipped = True
         self._skipped_issues = self._skipped_issues + 1
         # Verify all comments are present.
         issue_comments = googlecode_issue.GetComments()
         num_issue_comments = len(issue_comments)
-        num_existing_comments = existing_issue["comment_count"]
+        num_existing_comments = export_metadata["comment_count"]
         if num_issue_comments > num_existing_comments:
           for idx in range(num_existing_comments, num_issue_comments):
             comment_data = issue_comments[idx]
             googlecode_comment = GoogleCodeComment(
                 googlecode_issue, comment_data)
             self._issue_service.CreateComment(
-                existing_issue["id"], googlecode_comment)
+                export_metadata["exported_id"], googlecode_comment)
             print "  Added missing comment #%d" % (idx + 1)
 
         if rewrite_comments:
-          self._RewriteComments(
-              googlecode_issue, existing_issue["id"], self._id_map)
+          self._RewriteComments(googlecode_issue, export_metadata["exported_id"])
           print ""  # Advanced past the "progress bar" line.
 
         continue

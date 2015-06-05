@@ -420,9 +420,12 @@ class IssueService(issues.IssueService):
       if not _CheckSuccessful(response):
         raise IOError("Failed to retrieve previous issues.\n\n%s" % content)
       if not content:
-        return github_issues
+        break
       else:
         github_issues += content
+    # Filter out pull requests which are considered issues.
+    github_issues = filter(lambda issue: "pull_request" not in issue,
+                           github_issues)
     return github_issues
 
   def GetComments(self, issue_number):

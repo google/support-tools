@@ -118,11 +118,6 @@ class TestIssueExporter(unittest.TestCase):
         NO_ISSUE_DATA, BITBUCKET_REPO, USER_MAP)
     self.issue_exporter.Init()
 
-  def testGetAllPreviousIssues(self):
-    self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
-    self.issue_exporter.Init()
-    self.assertEqual(0, len(self.issue_exporter._previously_created_issues))
-
   def testCreateIssue(self):
     issue_number = self.issue_exporter._CreateIssue(SINGLE_ISSUE)
     self.assertEqual(1, issue_number)
@@ -180,6 +175,7 @@ class TestIssueExporter(unittest.TestCase):
             "updated": "yesterday",
         }]
 
+    self.issue_exporter.Init()
     self.issue_exporter.Start()
 
     self.assertEqual(3, self.issue_exporter._issue_total)

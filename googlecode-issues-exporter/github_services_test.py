@@ -212,6 +212,7 @@ class TestIssueService(unittest.TestCase):
     issue_number = self.github_issue_service._GetIssueNumber(issue)
     self.assertEqual(1347, issue_number)
 
+  # TODO(chris): Test filtering out issue responses a "pull_request" key.
   def testGetIssues(self):
     fake_github_service = github_services.FakeGitHubService(GITHUB_USERNAME,
                                                             GITHUB_REPO,
