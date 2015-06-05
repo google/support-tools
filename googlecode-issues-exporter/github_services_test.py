@@ -207,48 +207,6 @@ class TestIssueService(unittest.TestCase):
     self.assertEqual(self.http_mock.last_body,
                      json.dumps({"body": comment_body}))
 
-  def testCreateComment_NoIdRemapping(self):
-    comment_body = (
-        "issue 1, issue #2, and issue3\n"
-        "bug 4, bug #5, and bug6\n"
-        "other-project:7, issue other-project#8")
-
-    comment_data = { "content": comment_body, "published": "last year" }
-    test_comment = issues.GoogleCodeComment(SINGLE_ISSUE, comment_data)
-    self.github_issue_service.CreateComment(1, test_comment)
-
-    rendered_comment_body = json.loads(self.http_mock.last_body)["body"]
-    if comment_body not in rendered_comment_body:
-      self.fail("comment body not as expected:\n%s\n\nvs.\n\n%s\n" % (
-          comment_body, rendered_comment_body))
-
-  def testCreateComment_IdRemapping(self):
-    comment_body = (
-        "issue 1, issue #2, and issue3\n"
-        "bug 4, bug #5, and bug6\n"
-        "other-project:7, issue other-project#8")
-    expected_comment_body = (
-        "issue 111, issue #222, and issue3\n"
-        "bug 4, bug #555, and bug6\n"
-        "other-project:7, issue other-project#8")
-
-    id_mapping = {
-      "1": "111",
-      "2": "222",
-      "5": "555",
-      "8": "888" # NOTE: Not replace.
-    }
-
-    comment_data = { "content": comment_body, "published": "last year" }
-    test_comment = issues.GoogleCodeComment(SINGLE_ISSUE, comment_data)
-    self.github_issue_service.CreateComment(1, test_comment, id_mapping)
-
-    rendered_comment_body = json.loads(self.http_mock.last_body)["body"]
-    self.assertTrue(comment_body not in rendered_comment_body)
-    if expected_comment_body not in rendered_comment_body:
-      self.fail("expected comment body not as expected:\n%s\n\nvs.\n\n%s\n" % (
-          expected_comment_body, rendered_comment_body))
-
   def testGetIssueNumber(self):
     issue = {"number": 1347}
     issue_number = self.github_issue_service._GetIssueNumber(issue)

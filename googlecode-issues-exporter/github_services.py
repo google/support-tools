@@ -38,14 +38,6 @@ REQUEST_CHECK_TIME = 60 * 5
 # chronological order.
 COMMENT_DELAY = 0.5
 
-# Regular expression used by Google Code for auto-linking issue references,
-# e.g. "issue #8" or "bug5".
-ISSUE_REF_RE = re.compile(r"""
-    (?P<prefix>\b(issue|bug)\s*)
-    (?P<project_name>\s+[-a-z0-9]+[:\#])?
-    (?P<number_sign>\#?)
-    (?P<issue_id>\d+)\b""", re.IGNORECASE | re.MULTILINE | re.VERBOSE)
-
 
 def _CheckSuccessful(response):
   """Checks if the request was successful.
@@ -58,30 +50,6 @@ def _CheckSuccessful(response):
     True if the request was succesful.
   """
   return "status" in response and 200 <= int(response["status"]) < 300
-
-
-def RewriteComment(comment, id_mapping):
-  """Rewrite a comment's text based on an ID mapping.
-
-  Args:
-    comment: A string with the comment text. e.g. 'Closes issue #42'.
-    id_mapping: A dictionary mapping Google Code to GitHub issue IDs.
-                e.g. { '42': '142' }
-  Returns:
-    The rewritten comment text.
-  """
-  def renumberIssueReferences(match):
-    # Ignore references to other projects.
-    if match.group('project_name'):
-      return match.group()
-    # Ignore issues not found in the ID mapping.
-    google_code_id = match.group('issue_id')
-    if google_code_id not in id_mapping:
-      return match.group()
-    github_id = id_mapping[google_code_id]
-    return match.group().replace(google_code_id, github_id)
-
-  return ISSUE_REF_RE.sub(renumberIssueReferences, comment)
 
 
 class GitHubService(object):
@@ -457,6 +425,15 @@ class IssueService(issues.IssueService):
         github_issues += content
     return github_issues
 
+  def GetComments(self, issue_number):
+    """Gets all comments for a given GitHub issue."""
+    url = "%s/%s/comments" % (self._github_issues_url, issue_number)
+    response, content = self._github_service.PerformGetRequest(
+        url, params={})
+    if not _CheckSuccessful(response):
+      raise IOError("Failed to retrieve previous issues.\n\n%s" % content)
+    return content
+
   def CreateIssue(self, googlecode_issue):
     """Creates a GitHub issue.
 
@@ -470,10 +447,6 @@ class IssueService(issues.IssueService):
       issues.ServiceError: An error occurred creating the issue.
     """
     issue_title = googlecode_issue.GetTitle()
-    # It is not possible to create a Google Code issue without a title, but you
-    # can edit an issue to remove its title afterwards.
-    if issue_title.isspace():
-      issue_title = "<empty title>"
     # NOTE: Only users with "push" access can set labels for new issues. See:
     # https://developer.github.com/v3/issues/#create-an-issue
     issue = {
@@ -512,7 +485,7 @@ class IssueService(issues.IssueService):
       raise issues.ServiceError("\nFailed to close issue #%s.\n%s" % (
           issue_number, content))
 
-  def CreateComment(self, issue_number, googlecode_comment, id_mapping=None):
+  def CreateComment(self, issue_number, googlecode_comment):
     """Creates a comment on a GitHub issue.
 
     Args:
@@ -525,9 +498,21 @@ class IssueService(issues.IssueService):
     comment_url = "%s/%d/comments" % (self._github_issues_url, issue_number)
     comment = googlecode_comment.GetDescription()
 
-    # Rewrite IDs to Google Code text reference the right issues on GitHub.
-    if id_mapping:
-      comment = RewriteComment(comment, id_mapping)
+    json_body = json.dumps({"body": comment})
+    response, content = self._github_service.PerformPostRequest(
+        comment_url, json_body)
+
+    if not _CheckSuccessful(response):
+      raise issues.ServiceError(
+          "\nFailed to create comment for issue #%d\n\n"
+          "Response:\n%s\n\nContent:\n%s\n\n" %
+          (issue_number, response, content))
+    time.sleep(self._comment_delay)
+
+  def EditComment(self, googlecode_issue, googlecode_comment, comment_number):
+    """Edits an existing comment."""
+    comment_url = "%s/comments/%s" % (self._github_issues_url, comment_number)
+    comment = googlecode_comment.GetDescription()
 
     json_body = json.dumps({"body": comment})
     response, content = self._github_service.PerformPostRequest(
@@ -535,9 +520,9 @@ class IssueService(issues.IssueService):
 
     if not _CheckSuccessful(response):
       raise issues.ServiceError(
-          "\nFailed to create issue comment for issue #%d\n\n"
+          "\nFailed to edit comment with number #%d\n\n"
           "Response:\n%s\n\nContent:\n%s\n\n" %
-          (issue_number, response, content))
+          (comment_number, response, content))
     time.sleep(self._comment_delay)
 
   def _GetIssueNumber(self, content):

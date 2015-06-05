@@ -235,8 +235,47 @@ class GoogleCodeIssueTest(unittest.TestCase):
     self.assertEqual(
         "```\n???\n```\n\nOriginal issue reported on code.google.com by "
         "`None` on last year\n"
-        "- **Status changed:** `Fixed`.\n",
+        "- **Status changed**: `Fixed`.\n",
         comment.GetDescription())
+
+  def testIssueIdRewriting(self):
+    comment_body = (
+        "issue 1, issue #2, and issue3\n"
+        "bug 4, bug #5, and bug6\n"
+        "other-project:7, issue other-project#8\n"
+        "#914\n"
+        "- **Blocked**: #111\n"
+        "- **Blocking**: #222, #333\n")
+    expected_comment_body = (
+        "issue 111, issue #222, and issue3\n"
+        "bug 4, bug #555, and bug6\n"
+        "other-project:7, issue other-project#8\n"
+        "#914\n"
+        "- **Blocked**: #1000\n"
+        "- **Blocking**: #1001, #1002\n")
+
+    id_mapping = {
+      "1": "111",
+      "2": "222",
+      "5": "555",
+      "8": "888",  # NOTE: Not replaced bc proj-ref.
+      "111": "1000",
+      "222": "1001",
+      "333": "1002",
+    }
+    comment_data = {
+        "content": comment_body,
+        "id": 1,
+        "published": "last year",
+        "updates": {
+            "status": "Fixed",
+            },
+    }
+    comment = issues.GoogleCodeComment(SINGLE_ISSUE, comment_data, id_mapping)
+
+    if expected_comment_body not in comment.GetDescription():
+      self.fail("Expected comment body not as expected:\n%s\n\nvs.\n\n%s\n" % (
+          expected_comment_body, comment.GetDescription()))
 
   def testGetHtmlCommentDescription(self):
     self.assertIn("```\n1 < 2\n```", HTML_COMMENT.GetDescription())
