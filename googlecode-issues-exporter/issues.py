@@ -950,9 +950,9 @@ class IssueExporter(object):
       # Check if the issue has already been posted.
       if self._HasIssueBeenExported(googlecode_issue):
         export_metadata = self._GetExportedIssue(googlecode_issue)
-        print "%sGoogle Code issue #%s '%s' already exported with ID #%s." % (
+        print "%sGoogle Code issue #%s already exported with ID #%s." % (
             ("\n" if not last_issue_skipped else ""),
-            export_metadata["googlecode_id"], short_issue_title,
+            export_metadata["googlecode_id"],
             export_metadata["exported_id"])
         last_issue_skipped = True
         self._skipped_issues = self._skipped_issues + 1
