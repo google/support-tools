@@ -704,7 +704,8 @@ class IssueExporter(object):
     # Sort issues by GitHub ID, since Google Code issues will be exported in
     # order we can use the exported issue's chronology to resolve ambiguities
     # for issues with the same title. Yes, GitHub number == ID.
-    sorted(all_exported_issues, key=lambda issue: issue["number"])
+    all_exported_issues = sorted(all_exported_issues,
+                                 key=lambda issue: issue["number"])
     for exported_issue in all_exported_issues:
       exported_issue_id = exported_issue["number"]
       exported_issue_title = exported_issue["title"]
