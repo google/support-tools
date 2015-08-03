@@ -171,7 +171,8 @@ class TestIssueService(unittest.TestCase):
             "- **Labels added**: added-label\n"
             "- **Labels removed**: removed-label\n"),
         "assignee": "default_username",
-        "labels": ["awesome", "great"],
+        # Nb. We add the issue's status as a label.
+        "labels": ["awesome", "great", "Status-Fixed"],
         "title": "issue_title",
     }
     self.http_mock.content = {"number": 1}

@@ -228,7 +228,11 @@ class GoogleCodeIssue(object):
     Returns:
       A list of the labels of this issue.
     """
-    return self._issue.get("labels", [])
+    labels = self._issue.get("labels", [])
+    # Add status as a label.
+    if "status" in self._issue:
+      labels.append("Status-" + self._issue["status"])
+    return labels
 
   def GetKind(self):
     """Get the kind from a Google Code issue.
