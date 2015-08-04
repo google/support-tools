@@ -303,3 +303,18 @@ Unicode hyperlinks:
 
 We should handle this: [http://google.com Dé Dé]
 
+Non-rectangular tables:
+
+==Tamil Consonants - Phonetic==
+||ka/ga	||Za/Ga||
+||க	||ங||
+||ca	||ja	||za||
+||ச	||ஜ	||ஞ||
+||ta/da	||Na	||
+||ட	||ண	||
+||tha/dha	||na||
+||த	||ந||
+||pa/ba	||ma	||M||
+||ப	||ம	||ஂ||
+||ya	||ra	||Ra	||la	||La	||Qa	||va	||sa	||ha	||H	||xa	||Xa||qa||
+||ய	||ர	||ற	||ல	||ள	||ழ	||வ	||ஸ	||ஹ	||ஃ	||ஷ	||க்ஷ||ன||

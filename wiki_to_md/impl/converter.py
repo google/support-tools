@@ -700,7 +700,11 @@ class Converter(object):
       self._table_columns.append(cell_width)
     else:
       # In the table body, pad the cell (for prettier raw text viewing).
-      header_cell_width = self._table_columns[self._table_column - 1]
+      colIdx = self._table_column - 1
+      if colIdx >= len(self._table_columns):
+        colIdx = len(self._table_columns) - 1
+
+      header_cell_width = self._table_columns[colIdx]
       remaining_width = header_cell_width - cell_width
       if remaining_width > 0:
         padding = " " * remaining_width
