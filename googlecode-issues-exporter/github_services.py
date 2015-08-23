@@ -71,6 +71,7 @@ class GitHubService(object):
       github_owner_username: The username of the owner of the repository.
       github_repo_name: The GitHub repository name.
       github_oauth_token: The oauth token to use for the requests.
+      rate_limit: Whether or not to rate limit GitHub API requests.
       http_instance: The HTTP instance to use, if not set a default will be
           used.
     """
@@ -137,7 +138,7 @@ class GitHubService(object):
       A tuple of an HTTP response (https://developer.github.com/v3/#schema) and
       its content from the server which is decoded JSON.
     """
-    if self._rate_limit and self._rate_limit in ["True", "true"]:
+    if self._rate_limit:
       # Add a delay to all outgoing request to GitHub, as to not trigger their
       # anti-abuse mechanism. This is separate from your typical rate limit, and
       # only applies to certain API calls (like creating issues). And, alas, the
